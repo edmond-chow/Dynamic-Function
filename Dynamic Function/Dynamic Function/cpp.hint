@@ -1,0 +1,16 @@
+// 提示檔案會協助 Visual Studio IDE 解譯 Visual C++ 識別碼
+// 例如函式和巨集的名稱。
+// 如需詳細資訊，請參閱 https://go.microsoft.com/fwlink/?linkid=865984
+#define FUNC_TRAITS(CALL_OPT, NO_EXCEPT) template <typename Ret, typename... Args> struct func_traits<Ret CALL_OPT(Args...) NO_EXCEPT> : public func_prototype<Ret, Args...>, public std::bool_constant<true> { public: using proto = func_prototype<Ret, Args...>; };
+#define FUNC_TRAITS_WITH_NO_EXCEPT(CALL_OPT) FUNC_TRAITS(CALL_OPT, ) FUNC_TRAITS(CALL_OPT, noexcept)
+#define FUNC_TRAITS_WITH_NO_EXCEPT(CALL_OPT) FUNC_TRAITS(CALL_OPT, )
+#define SIZE (size_t)7
+#define SIZE (size_t)12
+#define OPCODE uint8_t __opcode[7]{ 0xB8, 0x00, 0x00, 0x00, 0x00 ,0xFF, 0xE0, };
+#define OPCODE uint8_t __opcode[12]{ 0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ,0xFF, 0xE0, };
+#define OFFSET &__opcode[1]
+#define OFFSET &__opcode[2]
+#define ENABLE_IF(type)
+#define REQUIRES(value)
+#define NODISCARD [[nodiscard]]
+#define NODISCARD
