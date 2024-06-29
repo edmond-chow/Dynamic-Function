@@ -29,7 +29,4 @@
       <Filter>來源檔案</Filter>
     </MASM>
   </ItemGroup>
-  <ItemGroup>
-    <None Include="cpp.hint" />
-  </ItemGroup>
 </Project>
