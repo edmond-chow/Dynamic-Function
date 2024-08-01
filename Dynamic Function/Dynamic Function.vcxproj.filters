@@ -15,17 +15,17 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dyn_functional.cpp">
+    <ClCompile Include="dynamics.cpp">
       <Filter>來源檔案</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="export\dyn_functional.h">
+    <ClInclude Include="export\dynamics.h">
       <Filter>標頭檔</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="register.asm">
+    <MASM Include="dynamics.asm">
       <Filter>來源檔案</Filter>
     </MASM>
   </ItemGroup>

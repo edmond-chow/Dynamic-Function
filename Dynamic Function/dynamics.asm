@@ -17,21 +17,12 @@ ifdef Win32
 .model flat
 option casemap:none
 .code
-_cr_ptr PROTO
-?capture@dyn@@YGXXZ PROC
-    jmp ?capture@dyn@@YAXXZ
-?capture@dyn@@YGXXZ ENDP
-?capture@dyn@@YIXXZ PROC
-    jmp ?capture@dyn@@YAXXZ
-?capture@dyn@@YIXXZ ENDP
-?capture@dyn@@YQXXZ PROC
-    jmp ?capture@dyn@@YAXXZ
-?capture@dyn@@YQXXZ ENDP
-?capture@dyn@@YAXXZ PROC
+_captured PROTO
+_capture_registers PROC
     push eax
     push edx
     push ecx
-    call _cr_ptr
+    call _captured
     mov [eax+04h], ebx
     mov [eax+10h], esi
     mov [eax+14h], edi
@@ -49,22 +40,13 @@ _cr_ptr PROTO
     mov edx, [eax+0Ch]
     pop eax
     ret
-?capture@dyn@@YAXXZ ENDP
+_capture_registers ENDP
 endif
 ifdef x64
 option casemap:none
 .code
-cr_ptr PROTO
-?capture@dyn@@YGXXZ PROC
-    jmp ?capture@dyn@@YAXXZ
-?capture@dyn@@YGXXZ ENDP
-?capture@dyn@@YIXXZ PROC
-    jmp ?capture@dyn@@YAXXZ
-?capture@dyn@@YIXXZ ENDP
-?capture@dyn@@YQXXZ PROC
-    jmp ?capture@dyn@@YAXXZ
-?capture@dyn@@YQXXZ ENDP
-?capture@dyn@@YAXXZ PROC
+captured PROTO
+capture_registers PROC
     push rax
     push rdx
     push rcx
@@ -72,7 +54,7 @@ cr_ptr PROTO
     push r9
     push r10
     push r11
-    call cr_ptr
+    call captured
     mov [rax+08h], rbx
     mov [rax+20h], rsi
     mov [rax+28h], rdi
@@ -102,6 +84,6 @@ cr_ptr PROTO
     mov rdx, [rax+18h]
     pop rax
     ret
-?capture@dyn@@YAXXZ ENDP
+capture_registers ENDP
 endif
 END
