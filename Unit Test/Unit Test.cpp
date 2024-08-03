@@ -16,7 +16,6 @@
 #include <string>
 #include <iostream>
 #include <dynamics.h>
-using byte = unsigned char;
 int __stdcall add(int x, int y)
 {
 	return x + y;

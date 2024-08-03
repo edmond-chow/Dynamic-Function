@@ -20,6 +20,18 @@
 #include <cstddef>
 #include <cstdint>
 #include <utility>
+#pragma push_macro("NODISCARD")
+#pragma push_macro("CONSTEXPR20")
+#if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1800))
+#define NODISCARD [[nodiscard]]
+#else
+#define NODISCARD
+#endif
+#if (__cplusplus >= 202002L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L) && (_MSC_VER >= 1800))
+#define CONSTEXPR20 constexpr
+#else
+#define CONSTEXPR20
+#endif
 namespace dyn
 {
 	/* infrastructures */
@@ -91,7 +103,7 @@ namespace dyn
 		return fn_size(caller.pointer);
 	};
 	template <typename Fn, typename... Args, typename = typename std::enable_if<func_traits<Fn>::value>::type>
-	auto fn_call(void* ptr, Args... args) -> func_traits<Fn>::ret
+	typename func_traits<Fn>::ret fn_call(void* ptr, Args... args)
 	{
 		union {
 			void* pointer;
@@ -100,6 +112,92 @@ namespace dyn
 		if (caller.invoke == nullptr) { throw; }
 		return caller.invoke(args...);
 	};
+	/* functionalities */
+	struct byte
+	{
+	private:
+		std::uint8_t b;
+	public:
+		constexpr byte() noexcept = default;
+		constexpr byte(const byte&) noexcept = default;
+		constexpr byte(byte&&) noexcept = default;
+		constexpr byte(std::uint8_t b) noexcept : b{ b } {};
+		constexpr byte(int b) noexcept : b{ static_cast<std::uint8_t>(b) } {};
+		constexpr byte& operator =(const byte&) & noexcept = default;
+		constexpr byte& operator =(byte&&) & noexcept = default;
+		CONSTEXPR20 ~byte() noexcept = default;
+		NODISCARD void* operator new(std::size_t s_t)
+		{
+			return fn_malloc(s_t);
+		};
+		NODISCARD void* operator new(std::size_t s_t, void* ptr)
+		{
+			return ptr;
+		};
+		NODISCARD void operator delete(void* ptr)
+		{
+			return fn_free(ptr);
+		};
+		NODISCARD void* operator new[](std::size_t s_t)
+		{
+			return fn_malloc(s_t);
+		};
+		NODISCARD void* operator new[](std::size_t s_t, void* ptr)
+		{
+			return ptr;
+		};
+		NODISCARD void operator delete[](void* ptr)
+		{
+			return fn_free(ptr);
+		};
+		constexpr byte operator <<(int shift) noexcept
+		{
+			return byte{ this->b << shift };
+		};
+		constexpr byte operator >>(int shift) noexcept
+		{
+			return byte{ this->b >> shift };
+		};
+		NODISCARD friend constexpr byte operator |(byte left, byte right) noexcept
+		{
+			return byte{ left.b | right.b };
+		};
+		NODISCARD friend constexpr byte operator &(byte left, byte right) noexcept
+		{
+			return byte{ left.b & right.b };
+		};
+		NODISCARD friend constexpr byte operator ^(byte left, byte right) noexcept
+		{
+			return byte{ left.b ^ right.b };
+		};
+		constexpr byte operator ~() noexcept
+		{
+			return byte{ ~this->b };
+		};
+		constexpr byte& operator <<=(int shift) & noexcept
+		{
+			return *this = *this << shift;
+		};
+		constexpr byte& operator >>=(int shift) & noexcept
+		{
+			return *this = *this >> shift;
+		};
+		constexpr byte& operator |=(byte right) & noexcept
+		{
+			return *this = *this | right;
+		};
+		constexpr byte& operator &=(byte right) & noexcept
+		{
+			return *this = *this & right;
+		};
+		constexpr byte& operator ^=(byte right) & noexcept
+		{
+			return *this = *this ^ right;
+		};
+	};
+
 }
+#pragma pop_macro("CONSTEXPR20")
+#pragma pop_macro("NODISCARD")
 #endif
 #endif
