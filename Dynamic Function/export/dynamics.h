@@ -222,7 +222,7 @@ namespace dyn
 		CONSTEXPR20 function(const function& other)
 			: obj{ new byte[other.sz] }, sz{ other.sz }, cap{ other.sz }
 		{
-			memcpy(this->obj, other.obj, other.sz);
+			std::copy_n(other.obj, other.sz, this->obj);
 		};
 		CONSTEXPR20 function(function&& other) noexcept
 			: obj{ other.obj }, sz{ other.sz }, cap{ other.sz }
@@ -231,21 +231,21 @@ namespace dyn
 			other.sz = 0;
 			other.cap = 0;
 		};
-		function(void* obj, std::size_t sz)
+		function(void* ptr, std::size_t sz)
 			: obj{ new byte[sz] }, sz{ sz }, cap{ sz }
 		{
-			memcpy(this->obj, obj, sz);
+			std::copy_n(reinterpret_cast<const byte*>(ptr), sz, this->obj);
+		};
+		template <std::size_t sz>
+		CONSTEXPR20 function(const std::uint8_t(&dat)[sz])
+			: obj{ new byte[sz] }, sz{ sz }, cap{ sz }
+		{
+			std::copy_n(reinterpret_cast<const byte*>(dat), sz, this->obj);
 		};
 		CONSTEXPR20 function(std::size_t cap)
 			: obj{ new byte[cap] }, sz{ cap }, cap{ cap }
 		{
-			memset(this->obj, 0xc3, cap);
-		};
-		template <std::size_t sz>
-		CONSTEXPR20 function(const std::uint8_t(& obj)[sz])
-			: obj{ new byte[sz] }, sz{ sz }, cap{ sz }
-		{
-			memcpy(this->obj, obj, sz);
+			std::fill_n(this->obj, cap, byte{ 0xc3 });
 		};
 		CONSTEXPR20 function& operator =(const function& other) &
 		{
@@ -256,7 +256,7 @@ namespace dyn
 				this->obj = new byte[other.sz];
 			}
 			this->sz = other.sz;
-			memcpy(this->obj, other.obj, other.sz);
+			std::copy_n(other.obj, other.sz, this->obj);
 			return *this;
 		};
 		CONSTEXPR20 function& operator =(function&& other) & noexcept
@@ -298,7 +298,7 @@ namespace dyn
 				byte* object;
 				Fn* invoke;
 			} caller{ this->obj };
-			return caller.invoke == nullptr ? typename func_traits<Fn>::ret{} : caller.invoke(std::forward(args)...);
+			return caller.invoke == nullptr ? typename func_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 		};
 		CONSTEXPR20 const byte* raw() const & noexcept
 		{
