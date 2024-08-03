@@ -291,7 +291,7 @@ namespace dyn
 			return !(left == right);
 		};
 		template <typename Fn, typename... Args, typename = typename std::enable_if<func_traits<Fn>::value>::type>
-		typename func_traits<Fn>::ret operator()(Args... args)
+		typename func_traits<Fn>::ret operator ()(Args... args)
 		{
 			union {
 				byte* object;
