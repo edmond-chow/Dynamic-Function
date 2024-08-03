@@ -35,16 +35,16 @@
 namespace dyn
 {
 	/* infrastructures */
-	extern "C" __declspec(dllimport) void* __stdcall fn_malloc(std::size_t s_t);
-	extern "C" __declspec(dllimport) void* __stdcall fn_realloc(void* ptr, std::size_t s_t);
+	extern "C" __declspec(dllimport) void* __stdcall fn_malloc(std::size_t sz);
+	extern "C" __declspec(dllimport) void* __stdcall fn_realloc(void* ptr, std::size_t sz);
 	extern "C" __declspec(dllimport) void __stdcall fn_free(void* ptr);
 	extern "C" __declspec(dllimport) std::ptrdiff_t fn_size(const void* ptr);
 	extern "C" __declspec(dllimport) int __stdcall fn_call(void* ptr);
 	/* specializes */
-	template <std::size_t s_t, typename... Args>
+	template <std::size_t sz, typename... Args>
 	struct traitor : std::bool_constant<false> {};
-	template <std::size_t s_t, typename Arg, typename... Others>
-	struct traitor<s_t, Arg, Others...> : public traitor<s_t - 1, Others...> {};
+	template <std::size_t sz, typename Arg, typename... Others>
+	struct traitor<sz, Arg, Others...> : public traitor<sz - 1, Others...> {};
 	template <typename Arg, typename... Others>
 	struct traitor<0, Arg, Others...> : public std::bool_constant<true>
 	{
@@ -59,10 +59,10 @@ namespace dyn
 	public:
 		static constexpr std::size_t size = sizeof...(Args) + 1;
 		using ret = Ret;
-		template <std::size_t s_t>
-		using args = typename traitor<s_t, Args...>::result;
+		template <std::size_t sz>
+		using args = typename traitor<sz, Args...>::result;
 	};
-	template <typename Func>
+	template <typename Fn>
 	struct func_traits : std::bool_constant<false> {};
 #pragma push_macro("FUNC_TRAITS")
 #pragma push_macro("FUNC_TRAITS_WITH_NO_EXCEPT")
@@ -90,16 +90,16 @@ namespace dyn
 #pragma pop_macro("FUNC_TRAITS_WITH_NO_EXCEPT")
 #pragma pop_macro("FUNC_TRAITS")
 #if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201402L) && (_MSC_VER >= 1800))
-		template <typename Func>
-	constexpr bool func_traits_v = func_traits<Func>::value;
+		template <typename Fn>
+	constexpr bool func_traits_v = func_traits<Fn>::value;
 #endif
 	template <typename Fn, typename = typename std::enable_if<func_traits<Fn>::value>::type>
-	std::ptrdiff_t fn_size(Fn* func)
+	std::ptrdiff_t fn_size(Fn* invoker)
 	{
 		union {
 			void* pointer;
 			Fn* invoke;
-		} caller{ func };
+		} caller{ invoker };
 		return fn_size(caller.pointer);
 	};
 	template <typename Fn, typename... Args, typename = typename std::enable_if<func_traits<Fn>::value>::type>
@@ -118,19 +118,21 @@ namespace dyn
 	private:
 		std::uint8_t b;
 	public:
-		constexpr byte() noexcept = default;
+		constexpr byte() noexcept
+			: b{ 0 }
+		{};
 		constexpr byte(const byte&) noexcept = default;
 		constexpr byte(byte&&) noexcept = default;
 		constexpr byte(std::uint8_t b) noexcept : b{ b } {};
-		constexpr byte(int b) noexcept : b{ static_cast<std::uint8_t>(b) } {};
+		constexpr explicit byte(int b) noexcept : b{ static_cast<std::uint8_t>(b) } {};
 		constexpr byte& operator =(const byte&) & noexcept = default;
 		constexpr byte& operator =(byte&&) & noexcept = default;
 		CONSTEXPR20 ~byte() noexcept = default;
-		NODISCARD void* operator new(std::size_t s_t)
+		NODISCARD void* operator new(std::size_t sz)
 		{
-			return fn_malloc(s_t);
+			return fn_malloc(sz);
 		};
-		NODISCARD void* operator new(std::size_t s_t, void* ptr)
+		NODISCARD void* operator new(std::size_t sz, void* ptr)
 		{
 			return ptr;
 		};
@@ -138,11 +140,11 @@ namespace dyn
 		{
 			return fn_free(ptr);
 		};
-		NODISCARD void* operator new[](std::size_t s_t)
+		NODISCARD void* operator new[](std::size_t sz)
 		{
-			return fn_malloc(s_t);
+			return fn_malloc(sz);
 		};
-		NODISCARD void* operator new[](std::size_t s_t, void* ptr)
+		NODISCARD void* operator new[](std::size_t sz, void* ptr)
 		{
 			return ptr;
 		};
@@ -158,21 +160,29 @@ namespace dyn
 		{
 			return byte{ this->b >> shift };
 		};
-		NODISCARD friend constexpr byte operator |(byte left, byte right) noexcept
+		NODISCARD friend constexpr byte operator |(const byte& left, const byte& right) noexcept
 		{
 			return byte{ left.b | right.b };
 		};
-		NODISCARD friend constexpr byte operator &(byte left, byte right) noexcept
+		NODISCARD friend constexpr byte operator &(const byte& left, const byte& right) noexcept
 		{
 			return byte{ left.b & right.b };
 		};
-		NODISCARD friend constexpr byte operator ^(byte left, byte right) noexcept
+		NODISCARD friend constexpr byte operator ^(const byte& left, const byte& right) noexcept
 		{
 			return byte{ left.b ^ right.b };
 		};
 		constexpr byte operator ~() noexcept
 		{
 			return byte{ ~this->b };
+		};
+		NODISCARD friend constexpr bool operator ==(const byte& left, const byte& right) noexcept
+		{
+			return left.b == right.b;
+		};
+		NODISCARD friend constexpr bool operator !=(const byte& left, const byte& right) noexcept
+		{
+			return left.b != right.b;
 		};
 		constexpr byte& operator <<=(int shift) & noexcept
 		{
@@ -194,8 +204,111 @@ namespace dyn
 		{
 			return *this = *this ^ right;
 		};
+		constexpr const std::uint8_t& raw() & noexcept
+		{
+			return this->b;
+		};
 	};
-
+	class function
+	{
+	private:
+		byte* obj;
+		std::size_t sz;
+		std::size_t cap;
+	public:
+		constexpr function() noexcept
+			: obj{ nullptr }, sz{ 0 }, cap{ 0 }
+		{};
+		CONSTEXPR20 function(const function& other)
+			: obj{ new byte[other.sz] }, sz{ other.sz }, cap{ other.sz }
+		{
+			memcpy(this->obj, other.obj, other.sz);
+		};
+		CONSTEXPR20 function(function&& other) noexcept
+			: obj{ other.obj }, sz{ other.sz }, cap{ other.sz }
+		{
+			other.obj = nullptr;
+			other.sz = 0;
+			other.cap = 0;
+		};
+		function(void* obj, std::size_t sz)
+			: obj{ new byte[sz] }, sz{ sz }, cap{ sz }
+		{
+			memcpy(this->obj, obj, sz);
+		};
+		CONSTEXPR20 function(std::size_t cap)
+			: obj{ new byte[cap] }, sz{ cap }, cap{ cap }
+		{
+			memset(this->obj, 0xc3, cap);
+		};
+		template <std::size_t sz>
+		CONSTEXPR20 function(const std::uint8_t(& obj)[sz])
+			: obj{ new byte[sz] }, sz{ sz }, cap{ sz }
+		{
+			memcpy(this->obj, obj, sz);
+		};
+		CONSTEXPR20 function& operator =(const function& other) &
+		{
+			if (this == &other) { return *this; }
+			if (this->sz != other.sz && this->cap < other.sz)
+			{
+				delete[] this->obj;
+				this->obj = new byte[other.sz];
+			}
+			this->sz = other.sz;
+			memcpy(this->obj, other.obj, other.sz);
+			return *this;
+		};
+		CONSTEXPR20 function& operator =(function&& other) & noexcept
+		{
+			if (this == &other) { return *this; }
+			delete[] this->obj;
+			this->obj = other.obj;
+			this->sz = other.sz;
+			this->cap = other.cap;
+			other.obj = nullptr;
+			other.sz = 0;
+			other.cap = 0;
+			return *this;
+		};
+		CONSTEXPR20 ~function() noexcept
+		{
+			delete[] this->obj;
+			this->obj = nullptr;
+			this->sz = 0;
+			this->cap = 0;
+		};
+		NODISCARD friend constexpr bool operator ==(const function& left, const function& right) noexcept
+		{
+			if (left.sz != right.sz) { return false; }
+			for (std::size_t i = 0; i < left.sz; ++i)
+			{
+				if (left.obj[i] != right.obj[i]) { return false; }
+			}
+			return true;
+		};
+		NODISCARD friend constexpr bool operator !=(const function& left, const function& right) noexcept
+		{
+			return !(left == right);
+		};
+		template <typename Fn, typename... Args>
+		typename func_traits<Fn>::ret operator ()(Args... args)
+		{
+			union {
+				byte* object;
+				Fn* invoke;
+			} caller{ this->obj };
+			return caller.invoke == nullptr ? typename func_traits<Fn>::ret{} : caller.invoke(std::forward(args)...);
+		};
+		CONSTEXPR20 const byte* raw() const & noexcept
+		{
+			return this->obj;
+		};
+		CONSTEXPR20 std::size_t size() const & noexcept
+		{
+			return this->sz;
+		};
+	};
 }
 #pragma pop_macro("CONSTEXPR20")
 #pragma pop_macro("NODISCARD")
