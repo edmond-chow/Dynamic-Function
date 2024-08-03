@@ -109,8 +109,7 @@ namespace dyn
 			void* pointer;
 			Fn* invoke;
 		} caller{ ptr };
-		if (caller.invoke == nullptr) { throw; }
-		return caller.invoke(args...);
+		return caller.invoke == nullptr ? typename func_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 	};
 	/* functionalities */
 	struct byte
@@ -291,8 +290,8 @@ namespace dyn
 		{
 			return !(left == right);
 		};
-		template <typename Fn, typename... Args>
-		typename func_traits<Fn>::ret operator ()(Args... args)
+		template <typename Fn, typename... Args, typename = typename std::enable_if<func_traits<Fn>::value>::type>
+		typename func_traits<Fn>::ret operator()(Args... args)
 		{
 			union {
 				byte* object;
