@@ -38,7 +38,6 @@ namespace dyn
 	extern "C" __declspec(dllimport) void* __stdcall fn_malloc(std::size_t sz);
 	extern "C" __declspec(dllimport) void* __stdcall fn_realloc(void* ptr, std::size_t sz);
 	extern "C" __declspec(dllimport) void __stdcall fn_free(void* ptr);
-	extern "C" __declspec(dllimport) std::ptrdiff_t fn_size(const void* ptr);
 	extern "C" __declspec(dllimport) int __stdcall fn_call(void* ptr);
 	/* specializes */
 	template <std::size_t sz, typename... Args>
@@ -93,15 +92,6 @@ namespace dyn
 		template <typename Fn>
 	constexpr bool func_traits_v = func_traits<Fn>::value;
 #endif
-	template <typename Fn, typename = typename std::enable_if<func_traits<Fn>::value>::type>
-	std::ptrdiff_t fn_size(Fn* invoker)
-	{
-		union {
-			void* pointer;
-			Fn* invoke;
-		} caller{ invoker };
-		return fn_size(caller.pointer);
-	};
 	template <typename Fn, typename... Args, typename = typename std::enable_if<func_traits<Fn>::value>::type>
 	typename func_traits<Fn>::ret fn_call(void* ptr, Args... args)
 	{

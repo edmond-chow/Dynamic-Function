@@ -40,15 +40,6 @@ namespace dyn
 	{
 		HeapFree(fn_heap, 0, ptr);
 	};
-	extern "C" __declspec(dllexport) std::ptrdiff_t fn_size(const void* ptr)
-	{
-		const char* ite = static_cast<const char*>(ptr);
-		while (*ite != 0xC3)
-		{
-			++ite;
-		}
-		return ite - static_cast<const char*>(ptr);
-	};
 #ifndef _WIN64
 	static const std::uint8_t call[] { 0xB8, 0x00, 0x00, 0x00, 0x00 ,0xFF, 0xE0 };
 	/*
