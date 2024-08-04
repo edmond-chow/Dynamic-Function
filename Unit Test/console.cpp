@@ -16,6 +16,7 @@
 #include <string>
 #include <iostream>
 #include <dynamics.h>
+/* Compiler optimizing the assembly, the generated object code goes a bit difference. */
 int __stdcall add(int x, int y)
 {
 	return x + y;
@@ -64,8 +65,8 @@ inline constexpr std::uint8_t callee[]{
 #endif
 int main()
 {
-	int result = add(3, 4);
-	/* Compiler optimizing the assembly, the generated object code goes a bit difference. */
+	dyn::function fn_reference{ add };
+	int result = fn_reference.operator()<int __stdcall(int, int)>(3, 4);
 	void* fn_caller = dyn::fn_malloc(std::extent_v<decltype(caller)>);
 	memcpy(fn_caller, caller, std::extent_v<decltype(caller)>);
 	void* fn_callee = dyn::fn_malloc(std::extent_v<decltype(callee)>);

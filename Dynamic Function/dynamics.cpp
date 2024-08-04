@@ -41,20 +41,20 @@ namespace dyn
 		HeapFree(fn_heap, 0, ptr);
 	};
 #ifndef _WIN64
-	static const std::uint8_t call[] { 0xB8, 0x00, 0x00, 0x00, 0x00 ,0xFF, 0xE0 };
+	static const std::uint8_t caller_object_code[] { 0xB8, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xE0 };
 	/*
 		0:  b8 00 00 00 00          mov    eax,0x0
 		5:  ff e0                   jmp    eax
 	*/
-	static const std::size_t call_offset = 1;
+	static const std::size_t caller_object_code_address_offset = 1;
 #else
-	static const std::uint8_t call[] { 0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 ,0xFF, 0xE0 };
+	static const std::uint8_t caller_object_code[] { 0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xE0 };
 	/*
 		0:  48 b8 00 00 00 00 00    movabs rax,0x0
 		7:  00 00 00
 		a:  ff e0                   jmp    rax
 	*/
-	static const std::size_t call_offset = 2;
+	static const std::size_t caller_object_code_address_offset = 2;
 #endif
 	extern "C" __declspec(dllexport) int __stdcall fn_call(void* ptr)
 	{
@@ -63,9 +63,9 @@ namespace dyn
 			std::uint8_t* data;
 			int(__stdcall* invoke)();
 		} caller{};
-		caller.pointer = fn_malloc(std::extent_v<decltype(call)>);
-		memcpy(caller.pointer, call, std::extent_v<decltype(call)>);
-		*reinterpret_cast<intptr_t*>(&caller.data[call_offset]) = reinterpret_cast<intptr_t>(ptr);
+		caller.pointer = fn_malloc(std::extent_v<decltype(caller_object_code)>);
+		memcpy(caller.pointer, caller_object_code, std::extent_v<decltype(caller_object_code)>);
+		*reinterpret_cast<intptr_t*>(&caller.data[caller_object_code_address_offset]) = reinterpret_cast<intptr_t>(ptr);
 		int result = caller.invoke();
 		fn_free(caller.pointer);
 		return result;

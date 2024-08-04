@@ -98,7 +98,8 @@ namespace dyn
 		union {
 			void* pointer;
 			Fn* invoke;
-		} caller{ ptr };
+		} caller{};
+		caller.pointer = ptr;
 		return caller.invoke == nullptr ? typename func_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 	};
 	/* functionalities */
@@ -201,45 +202,70 @@ namespace dyn
 	class function
 	{
 	private:
+		bool ref;
 		byte* obj;
 		std::size_t sz;
 		std::size_t cap;
 	public:
-		constexpr function() noexcept
-			: obj{ nullptr }, sz{ 0 }, cap{ 0 }
+		constexpr function() noexcept // Default constructions treat as 'this->ref' in 'false' case.
+			: ref{ false }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{};
-		CONSTEXPR20 function(const function& other)
-			: obj{ new byte[other.sz] }, sz{ other.sz }, cap{ other.sz }
+		CONSTEXPR20 function(const function& other) // Copy constructions with a preprocessed move action collapse 'this->cap' to 'this->sz' with 'new byte[other.sz]'.
+			: ref{ other.ref }, obj{ other.obj }, sz{ other.sz }, cap{ other.sz }
 		{
-			std::copy_n(other.obj, other.sz, this->obj);
+			if (!other.ref && other.obj != nullptr)
+			{
+				this->obj = new byte[other.sz];
+				std::copy_n(other.obj, other.sz, this->obj);
+			}
 		};
-		CONSTEXPR20 function(function&& other) noexcept
-			: obj{ other.obj }, sz{ other.sz }, cap{ other.sz }
+		CONSTEXPR20 function(function&& other) noexcept // Move constructions are fundamentally the way memberised every subobject of the instance.
+			: ref{ other.ref }, obj{ other.obj }, sz{ other.sz }, cap{ other.cap }
 		{
+			other.ref = false;
 			other.obj = nullptr;
 			other.sz = 0;
 			other.cap = 0;
 		};
-		function(void* ptr, std::size_t sz)
-			: obj{ new byte[sz] }, sz{ sz }, cap{ sz }
+		template <typename Fn, typename = typename std::enable_if<func_traits<Fn>::value>::type>
+		constexpr function(Fn* invoker) noexcept // Constructions with a function reference treat as 'this->ref' in 'true' case.
+			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
+		{
+			union {
+				byte* object;
+				Fn* invoke;
+			} caller{};
+			caller.invoke = invoker;
+			this->obj = caller.object;
+		};
+		function(void* ptr, std::size_t sz) // Constructions with a storage duration treat as 'this->ref' in 'false' case.
+			: ref{ false }, obj{ new byte[sz] }, sz{ sz }, cap{ sz }
 		{
 			std::copy_n(reinterpret_cast<const byte*>(ptr), sz, this->obj);
 		};
 		template <std::size_t sz>
-		CONSTEXPR20 function(const std::uint8_t(&dat)[sz])
-			: obj{ new byte[sz] }, sz{ sz }, cap{ sz }
+		CONSTEXPR20 function(const std::uint8_t(&dat)[sz]) // Constructions with object codes treat as 'this->ref' in 'false' case.
+			: ref{ false }, obj{ new byte[sz] }, sz{ sz }, cap{ sz }
 		{
 			std::copy_n(reinterpret_cast<const byte*>(dat), sz, this->obj);
 		};
-		CONSTEXPR20 function(std::size_t cap)
-			: obj{ new byte[cap] }, sz{ cap }, cap{ cap }
+		CONSTEXPR20 function(std::size_t cap) // Constructions with a given capacity treat as 'this->ref' in 'false' case.
+			: ref{ false }, obj{ new byte[cap] }, sz{ cap }, cap{ cap }
 		{
 			std::fill_n(this->obj, cap, byte{ 0xc3 });
 		};
-		CONSTEXPR20 function& operator =(const function& other) &
+		CONSTEXPR20 function& operator =(const function& other) & // Copy assignment operators involve copy construction with initializer list whenever not be in self-assignment, forwarding the value of 'other.ref', move action only works with the exclusing case of the condition of if-clause thereof within the copy constructor.
 		{
 			if (this == &other) { return *this; }
-			if (this->sz != other.sz && this->cap < other.sz)
+			this->ref = other.ref;
+			if (other.ref || other.obj == nullptr) // The instance constructed with a function reference or default constructor at which the code not held on any storage duration allocated.
+			{
+				this->obj = other.obj;
+				this->sz = other.sz;
+				this->cap = other.sz;
+				return *this;
+			}
+			else if (this->sz != other.sz && this->cap < other.sz) // Extending capacity when the storage duration is not enough space.
 			{
 				delete[] this->obj;
 				this->obj = new byte[other.sz];
@@ -248,21 +274,24 @@ namespace dyn
 			std::copy_n(other.obj, other.sz, this->obj);
 			return *this;
 		};
-		CONSTEXPR20 function& operator =(function&& other) & noexcept
+		CONSTEXPR20 function& operator =(function&& other) & noexcept // Move assignment operators with 'delete[] this->obj' including the exclusing case of the condition of if-clause thereof within the copy constructor involve move construction with initializer list whenever not be in self-assignment.
 		{
 			if (this == &other) { return *this; }
-			delete[] this->obj;
+			if (!this->ref && this->obj != nullptr) { delete[] this->obj; }
+			this->ref = other.ref;
 			this->obj = other.obj;
 			this->sz = other.sz;
 			this->cap = other.cap;
+			other.ref = false;
 			other.obj = nullptr;
 			other.sz = 0;
 			other.cap = 0;
 			return *this;
 		};
-		CONSTEXPR20 ~function() noexcept
+		CONSTEXPR20 ~function() noexcept // Destructions with 'delete[] this->obj' including the exclusing case of the condition of if-clause thereof within the copy constructor involve default construction.
 		{
-			delete[] this->obj;
+			if (!this->ref && this->obj != nullptr) { delete[] this->obj; }
+			this->ref = false;
 			this->obj = nullptr;
 			this->sz = 0;
 			this->cap = 0;
@@ -286,7 +315,8 @@ namespace dyn
 			union {
 				byte* object;
 				Fn* invoke;
-			} caller{ this->obj };
+			} caller{};
+			caller.object = this->obj;
 			return caller.invoke == nullptr ? typename func_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 		};
 		CONSTEXPR20 const byte* raw() const & noexcept
