@@ -24,8 +24,10 @@
 #pragma push_macro("CONSTEXPR20")
 #if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1800))
 #define NODISCARD [[nodiscard]]
+#define INLINE_VAR inline
 #else
 #define NODISCARD
+#define INLINE_VAR
 #endif
 #if (__cplusplus >= 202002L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L) && (_MSC_VER >= 1800))
 #define CONSTEXPR20 constexpr
@@ -40,10 +42,10 @@ namespace dyn
 	extern "C" __declspec(dllimport) void __stdcall fn_free(void* ptr);
 	extern "C" __declspec(dllimport) int __stdcall fn_call(void* ptr);
 	/* specializes */
-	template <std::size_t sz, typename... Args>
+	template <std::size_t Ix, typename... Args>
 	struct traitor : std::bool_constant<false> {};
-	template <std::size_t sz, typename Arg, typename... Others>
-	struct traitor<sz, Arg, Others...> : public traitor<sz - 1, Others...> {};
+	template <std::size_t Ix, typename Arg, typename... Others>
+	struct traitor<Ix, Arg, Others...> : public traitor<Ix - 1, Others...> {};
 	template <typename Arg, typename... Others>
 	struct traitor<0, Arg, Others...> : public std::bool_constant<true>
 	{
@@ -58,8 +60,8 @@ namespace dyn
 	public:
 		static constexpr std::size_t size = sizeof...(Args) + 1;
 		using ret = Ret;
-		template <std::size_t sz>
-		using args = typename traitor<sz, Args...>::result;
+		template <std::size_t Ix>
+		using args = typename traitor<Ix, Args...>::result;
 	};
 	template <typename Fn>
 	struct func_traits : std::bool_constant<false> {};
@@ -82,15 +84,15 @@ namespace dyn
 #endif
 	FUNC_TRAITS_WITH_NO_EXCEPT(__cdecl)
 #ifndef _WIN64
-		FUNC_TRAITS_WITH_NO_EXCEPT(__stdcall)
-		FUNC_TRAITS_WITH_NO_EXCEPT(__fastcall)
+	FUNC_TRAITS_WITH_NO_EXCEPT(__stdcall)
+	FUNC_TRAITS_WITH_NO_EXCEPT(__fastcall)
 #endif
-		FUNC_TRAITS_WITH_NO_EXCEPT(__vectorcall)
+	FUNC_TRAITS_WITH_NO_EXCEPT(__vectorcall)
 #pragma pop_macro("FUNC_TRAITS_WITH_NO_EXCEPT")
 #pragma pop_macro("FUNC_TRAITS")
 #if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201402L) && (_MSC_VER >= 1800))
-		template <typename Fn>
-	constexpr bool func_traits_v = func_traits<Fn>::value;
+	template <typename Fn>
+	INLINE_VAR constexpr bool func_traits_v = func_traits<Fn>::value;
 #endif
 	template <typename Fn, typename... Args, typename = typename std::enable_if<func_traits<Fn>::value>::type>
 	typename func_traits<Fn>::ret fn_call(void* ptr, Args... args)
