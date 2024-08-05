@@ -32,7 +32,7 @@
 #if (__cplusplus >= 202002L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 202002L) && (_MSC_VER >= 1800))
 #define CONSTEXPR20 constexpr
 #else
-#define CONSTEXPR20
+#define CONSTEXPR20 inline
 #endif
 namespace dyn
 {
