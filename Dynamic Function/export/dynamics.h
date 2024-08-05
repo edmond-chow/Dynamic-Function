@@ -43,66 +43,76 @@ namespace dyn
 	extern "C" __declspec(dllimport) int __stdcall fn_call(void* ptr);
 	/* specializes */
 	template <std::size_t Ix, typename... Args>
-	struct traitor : std::bool_constant<false> {};
+	struct argument_traits
+		: std::bool_constant<false>
+	{};
 	template <std::size_t Ix, typename Arg, typename... Others>
-	struct traitor<Ix, Arg, Others...> : public traitor<Ix - 1, Others...> {};
+	struct argument_traits<Ix, Arg, Others...>
+		: public argument_traits<Ix - 1, Others...>
+	{};
 	template <typename Arg, typename... Others>
-	struct traitor<0, Arg, Others...> : public std::bool_constant<true>
+	struct argument_traits<0, Arg, Others...>
+		: public std::bool_constant<true>
 	{
 	public:
 		using result = Arg;
 	};
 	template <>
-	struct traitor<0> : public std::bool_constant<false> {};
+	struct argument_traits<0>
+		: public std::bool_constant<false>
+	{};
 	template <typename Ret, typename... Args>
-	struct func_prototype
+	struct function_proto
 	{
 	public:
 		static constexpr std::size_t size = sizeof...(Args) + 1;
 		using ret = Ret;
 		template <std::size_t Ix>
-		using args = typename traitor<Ix, Args...>::result;
+		using args = typename argument_traits<Ix, Args...>::result;
 	};
 	template <typename Fn>
-	struct func_traits : std::bool_constant<false> {};
-#pragma push_macro("FUNC_TRAITS")
-#pragma push_macro("FUNC_TRAITS_WITH_NO_EXCEPT")
-#define FUNC_TRAITS(CALL_OPT, NO_EXCEPT)\
+	struct function_traits
+		: public std::bool_constant<false>
+	{};
+#pragma push_macro("FUNCTION_TRAITS")
+#pragma push_macro("FUNCTION_TRAITS_WITH_NO_EXCEPT")
+#define FUNCTION_TRAITS(CALL_OPT, NO_EXCEPT)\
 	template <typename Ret, typename... Args>\
-	struct func_traits<Ret CALL_OPT(Args...) NO_EXCEPT> : public func_prototype<Ret, Args...>, public std::bool_constant<true>\
+	struct function_traits<Ret CALL_OPT(Args...) NO_EXCEPT>\
+		: public function_proto<Ret, Args...>, public std::bool_constant<true>\
 	{\
 	public:\
-		using proto = func_prototype<Ret, Args...>;\
+		using proto = function_proto<Ret, Args...>;\
 	};
 #if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1800))
-#define FUNC_TRAITS_WITH_NO_EXCEPT(CALL_OPT)\
-	FUNC_TRAITS(CALL_OPT, )\
-	FUNC_TRAITS(CALL_OPT, noexcept)
+#define FUNCTION_TRAITS_WITH_NO_EXCEPT(CALL_OPT)\
+	FUNCTION_TRAITS(CALL_OPT, )\
+	FUNCTION_TRAITS(CALL_OPT, noexcept)
 #else
-#define FUNC_TRAITS_WITH_NO_EXCEPT(CALL_OPT)\
-	FUNC_TRAITS(CALL_OPT, )
+#define FUNCTION_TRAITS_WITH_NO_EXCEPT(CALL_OPT)\
+	FUNCTION_TRAITS(CALL_OPT, )
 #endif
-	FUNC_TRAITS_WITH_NO_EXCEPT(__cdecl)
+	FUNCTION_TRAITS_WITH_NO_EXCEPT(__cdecl)
 #ifndef _WIN64
-	FUNC_TRAITS_WITH_NO_EXCEPT(__stdcall)
-	FUNC_TRAITS_WITH_NO_EXCEPT(__fastcall)
+	FUNCTION_TRAITS_WITH_NO_EXCEPT(__stdcall)
+	FUNCTION_TRAITS_WITH_NO_EXCEPT(__fastcall)
 #endif
-	FUNC_TRAITS_WITH_NO_EXCEPT(__vectorcall)
-#pragma pop_macro("FUNC_TRAITS_WITH_NO_EXCEPT")
-#pragma pop_macro("FUNC_TRAITS")
+	FUNCTION_TRAITS_WITH_NO_EXCEPT(__vectorcall)
+#pragma pop_macro("FUNCTION_TRAITS_WITH_NO_EXCEPT")
+#pragma pop_macro("FUNCTION_TRAITS")
 #if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201402L) && (_MSC_VER >= 1800))
 	template <typename Fn>
-	INLINE_VAR constexpr bool func_traits_v = func_traits<Fn>::value;
+	INLINE_VAR constexpr bool function_traits_v = function_traits<Fn>::value;
 #endif
-	template <typename Fn, typename... Args, typename = typename std::enable_if<func_traits<Fn>::value>::type>
-	typename func_traits<Fn>::ret fn_call(void* ptr, Args... args)
+	template <typename Fn, typename... Args, typename = typename std::enable_if<function_traits<Fn>::value>::type>
+	typename function_traits<Fn>::ret fn_call(void* ptr, Args... args)
 	{
 		union {
 			void* pointer;
 			Fn* invoke;
 		} caller{};
 		caller.pointer = ptr;
-		return caller.invoke == nullptr ? typename func_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
+		return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 	};
 	/* functionalities */
 	struct byte
@@ -229,7 +239,7 @@ namespace dyn
 			other.sz = 0;
 			other.cap = 0;
 		};
-		template <typename Fn, typename = typename std::enable_if<func_traits<Fn>::value>::type>
+		template <typename Fn, typename = typename std::enable_if<function_traits<Fn>::value>::type>
 		constexpr function(Fn* invoker) noexcept // Constructions with a function reference treat as 'this->ref' in 'true' case.
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
@@ -311,15 +321,15 @@ namespace dyn
 		{
 			return !(left == right);
 		};
-		template <typename Fn, typename... Args, typename = typename std::enable_if<func_traits<Fn>::value>::type>
-		typename func_traits<Fn>::ret operator ()(Args... args)
+		template <typename Fn, typename... Args, typename = typename std::enable_if<function_traits<Fn>::value>::type>
+		typename function_traits<Fn>::ret operator ()(Args... args)
 		{
 			union {
 				byte* object;
 				Fn* invoke;
 			} caller{};
 			caller.object = this->obj;
-			return caller.invoke == nullptr ? typename func_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
+			return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 		};
 		CONSTEXPR20 const byte* raw() const & noexcept
 		{
