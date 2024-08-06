@@ -103,36 +103,36 @@ namespace dyn
 	template <typename Fn>
 	INLINE_VAR constexpr bool function_traits_v = function_traits<Fn>::value;
 #endif
-	INLINE_VAR constexpr std::size_t call_opt_cdecl = 0;
-	INLINE_VAR constexpr std::size_t call_opt_stdcall = 1;
-	INLINE_VAR constexpr std::size_t call_opt_fastcall = 2;
-	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 3;
+	INLINE_VAR constexpr std::size_t call_opt_cdecl = 1;
+	INLINE_VAR constexpr std::size_t call_opt_stdcall = 2;
+	INLINE_VAR constexpr std::size_t call_opt_fastcall = 3;
+	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 4;
 	template <std::size_t Opt, typename Ret, typename... Args>
-	struct call_opt_out
+	struct make_function_type
 	{
 	public:
 		using type = Ret(Args...);
 	};
 	template <typename Ret, typename... Args>
-	struct call_opt_out<call_opt_cdecl, Ret, Args...>
+	struct make_function_type<call_opt_cdecl, Ret, Args...>
 	{
 	public:
 		using type = Ret __cdecl(Args...);
 	};
 	template <typename Ret, typename... Args>
-	struct call_opt_out<call_opt_stdcall, Ret, Args...>
+	struct make_function_type<call_opt_stdcall, Ret, Args...>
 	{
 	public:
 		using type = Ret __stdcall(Args...);
 	};
 	template <typename Ret, typename... Args>
-	struct call_opt_out<call_opt_fastcall, Ret, Args...>
+	struct make_function_type<call_opt_fastcall, Ret, Args...>
 	{
 	public:
 		using type = Ret __fastcall(Args...);
 	};
 	template <typename Ret, typename... Args>
-	struct call_opt_out<call_opt_vectorcall, Ret, Args...>
+	struct make_function_type<call_opt_vectorcall, Ret, Args...>
 	{
 	public:
 		using type = Ret __vectorcall(Args...);
@@ -147,7 +147,7 @@ namespace dyn
 		caller.pointer = ptr;
 		return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 	};
-	template <typename Ret = int, std::size_t Opt = call_opt_stdcall, typename... Args, typename Fn = typename call_opt_out<Opt, Ret, Args...>::type>
+	template <typename Ret = int, std::size_t Opt = 0, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Args...>::type>
 	Ret fn_call(void* ptr, Args... args)
 	{
 		return fn_call<Fn>(ptr, std::forward<Args>(args)...);
@@ -387,7 +387,7 @@ namespace dyn
 			caller.object = this->obj;
 			return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 		};
-		template <typename Ret = int, std::size_t Opt = call_opt_stdcall, typename... Args, typename Fn = typename call_opt_out<Opt, Ret, Args...>::type>
+		template <typename Ret = int, std::size_t Opt = 0, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Args...>::type>
 		Ret operator ()(Args... args) const &
 		{
 			return this->operator ()<Fn>(std::forward<Args>(args)...);
