@@ -40,7 +40,6 @@ namespace dyn
 	extern "C" __declspec(dllimport) void* __stdcall fn_malloc(std::size_t sz);
 	extern "C" __declspec(dllimport) void* __stdcall fn_realloc(void* ptr, std::size_t sz);
 	extern "C" __declspec(dllimport) void __stdcall fn_free(void* ptr);
-	extern "C" __declspec(dllimport) int __stdcall fn_call(void* ptr);
 	/* specializes */
 	template <std::size_t Ix, typename... Args>
 	struct argument_traits
@@ -104,6 +103,40 @@ namespace dyn
 	template <typename Fn>
 	INLINE_VAR constexpr bool function_traits_v = function_traits<Fn>::value;
 #endif
+	INLINE_VAR constexpr std::size_t call_opt_cdecl = 0;
+	INLINE_VAR constexpr std::size_t call_opt_stdcall = 1;
+	INLINE_VAR constexpr std::size_t call_opt_fastcall = 2;
+	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 3;
+	template <std::size_t Opt, typename Ret, typename... Args>
+	struct call_opt_out
+	{
+	public:
+		using type = Ret(Args...);
+	};
+	template <typename Ret, typename... Args>
+	struct call_opt_out<call_opt_cdecl, Ret, Args...>
+	{
+	public:
+		using type = Ret __cdecl(Args...);
+	};
+	template <typename Ret, typename... Args>
+	struct call_opt_out<call_opt_stdcall, Ret, Args...>
+	{
+	public:
+		using type = Ret __stdcall(Args...);
+	};
+	template <typename Ret, typename... Args>
+	struct call_opt_out<call_opt_fastcall, Ret, Args...>
+	{
+	public:
+		using type = Ret __fastcall(Args...);
+	};
+	template <typename Ret, typename... Args>
+	struct call_opt_out<call_opt_vectorcall, Ret, Args...>
+	{
+	public:
+		using type = Ret __vectorcall(Args...);
+	};
 	template <typename Fn, typename... Args, typename = typename std::enable_if<function_traits<Fn>::value>::type>
 	typename function_traits<Fn>::ret fn_call(void* ptr, Args... args)
 	{
@@ -113,6 +146,11 @@ namespace dyn
 		} caller{};
 		caller.pointer = ptr;
 		return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
+	};
+	template <typename Ret = int, std::size_t Opt = call_opt_stdcall, typename... Args, typename Fn = typename call_opt_out<Opt, Ret, Args...>::type>
+	Ret fn_call(void* ptr, Args... args)
+	{
+		return fn_call<Fn>(ptr, std::forward<Args>(args)...);
 	};
 	/* functionalities */
 	struct byte
@@ -321,8 +359,26 @@ namespace dyn
 		{
 			return !(left == right);
 		};
+		CONSTEXPR20 byte& operator [](std::size_t sz) & noexcept
+		{
+			return this->obj[sz];
+		};
+		CONSTEXPR20 const byte& operator [](std::size_t sz) const & noexcept
+		{
+			return this->obj[sz];
+		};
+		template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+		CONSTEXPR20 T& operator [](std::size_t sz) & noexcept
+		{
+			return reinterpret_cast<T&>(this->obj[sz]);
+		};
+		template <typename T, typename = typename std::enable_if<std::is_integral<T>::value>::type>
+		CONSTEXPR20 const T& operator [](std::size_t sz) const & noexcept
+		{
+			return reinterpret_cast<const T&>(this->obj[sz]);
+		};
 		template <typename Fn, typename... Args, typename = typename std::enable_if<function_traits<Fn>::value>::type>
-		typename function_traits<Fn>::ret operator ()(Args... args)
+		typename function_traits<Fn>::ret operator ()(Args... args) const &
 		{
 			union {
 				byte* object;
@@ -330,6 +386,11 @@ namespace dyn
 			} caller{};
 			caller.object = this->obj;
 			return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
+		};
+		template <typename Ret = int, std::size_t Opt = call_opt_stdcall, typename... Args, typename Fn = typename call_opt_out<Opt, Ret, Args...>::type>
+		Ret operator ()(Args... args) const &
+		{
+			return this->operator ()<Fn>(std::forward<Args>(args)...);
 		};
 		CONSTEXPR20 const byte* raw() const & noexcept
 		{

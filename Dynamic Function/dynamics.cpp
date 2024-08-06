@@ -40,15 +40,6 @@ namespace dyn
 	{
 		HeapFree(fn_heap, 0, ptr);
 	};
-	extern "C" __declspec(dllexport) int __stdcall fn_call(void* ptr)
-	{
-		union {
-			void* pointer;
-			int(__stdcall* invoke)();
-		} caller{};
-		caller.pointer = ptr;
-		return caller.invoke();
-	};
 }
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
