@@ -72,7 +72,7 @@ INLINE_VAR constexpr std::size_t callee_sz = std::extent_v<decltype(callee)>;
 	3:  c3                      ret
 */
 #endif
-int main()
+int __cdecl main()
 {
 	dyn::function fn_reference{ add };
 	int result = fn_reference.operator ()<int, dyn::call_opt_stdcall>(3, 4);

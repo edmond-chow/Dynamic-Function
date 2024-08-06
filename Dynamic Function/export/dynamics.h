@@ -103,33 +103,36 @@ namespace dyn
 	template <typename Fn>
 	INLINE_VAR constexpr bool function_traits_v = function_traits<Fn>::value;
 #endif
-	INLINE_VAR constexpr std::size_t call_opt_cdecl = 1;
-	INLINE_VAR constexpr std::size_t call_opt_stdcall = 2;
-	INLINE_VAR constexpr std::size_t call_opt_fastcall = 3;
-	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 4;
-	template <std::size_t Opt, typename Ret, typename... Args>
-	struct make_function_type
-	{
-	public:
-		using type = Ret(Args...);
-	};
+	INLINE_VAR constexpr std::size_t call_opt_cdecl = 0;
+	INLINE_VAR constexpr std::size_t call_opt_stdcall = 1;
+	INLINE_VAR constexpr std::size_t call_opt_fastcall = 2;
+	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 3;
+	template <std::size_t Opt = call_opt_cdecl, typename Ret = void, typename... Args>
+	struct make_function_type;
 	template <typename Ret, typename... Args>
 	struct make_function_type<call_opt_cdecl, Ret, Args...>
 	{
 	public:
 		using type = Ret __cdecl(Args...);
+		static_assert(std::is_same<type, Ret(Args...)>::value, L"Always true in any case!");
 	};
 	template <typename Ret, typename... Args>
 	struct make_function_type<call_opt_stdcall, Ret, Args...>
 	{
 	public:
 		using type = Ret __stdcall(Args...);
+#ifdef _WIN64
+		static_assert(std::is_same<type, Ret(Args...)>::value, L"Always true in x64!");
+#endif
 	};
 	template <typename Ret, typename... Args>
 	struct make_function_type<call_opt_fastcall, Ret, Args...>
 	{
 	public:
 		using type = Ret __fastcall(Args...);
+#ifdef _WIN64
+		static_assert(std::is_same<type, Ret(Args...)>::value, L"Always true in x64!");
+#endif
 	};
 	template <typename Ret, typename... Args>
 	struct make_function_type<call_opt_vectorcall, Ret, Args...>
