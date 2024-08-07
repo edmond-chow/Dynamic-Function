@@ -106,7 +106,8 @@ namespace dyn
 	INLINE_VAR constexpr std::size_t call_opt_cdecl = 0;
 	INLINE_VAR constexpr std::size_t call_opt_stdcall = 1;
 	INLINE_VAR constexpr std::size_t call_opt_fastcall = 2;
-	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 3;
+	INLINE_VAR constexpr std::size_t call_opt_thiscall = 3;
+	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 4;
 	template <std::size_t Opt = call_opt_cdecl, typename Ret = void, typename... Args>
 	struct make_function_type;
 	template <typename Ret, typename... Args>
@@ -114,7 +115,7 @@ namespace dyn
 	{
 	public:
 		using type = Ret __cdecl(Args...);
-		static_assert(std::is_same<type, Ret(Args...)>::value, L"Always true in any case!");
+		static_assert(std::is_same<type, Ret(Args...)>::value, "Always true in any case!");
 	};
 	template <typename Ret, typename... Args>
 	struct make_function_type<call_opt_stdcall, Ret, Args...>
@@ -122,7 +123,7 @@ namespace dyn
 	public:
 		using type = Ret __stdcall(Args...);
 #ifdef _WIN64
-		static_assert(std::is_same<type, Ret(Args...)>::value, L"Always true in x64!");
+		static_assert(std::is_same<type, Ret(Args...)>::value, "Always true in x64!");
 #endif
 	};
 	template <typename Ret, typename... Args>
@@ -131,7 +132,20 @@ namespace dyn
 	public:
 		using type = Ret __fastcall(Args...);
 #ifdef _WIN64
-		static_assert(std::is_same<type, Ret(Args...)>::value, L"Always true in x64!");
+		static_assert(std::is_same<type, Ret(Args...)>::value, "Always true in x64!");
+#endif
+	};
+	template <typename Ret, typename Ths, typename... Args>
+	struct make_function_type<call_opt_thiscall, Ret, Ths*, Args...>
+	{
+	public:
+#ifndef _WIN64
+		using type = Ret __fastcall(Ths*, int, Args...);
+		// In x86 mode, functions as such with thiscall likewise what we have in fastcall, while both the callee the responsibility to clean up the stack for arguments passed through by the caller, but fastcall using both ecx and edx registers pass through leftmost 2 arguments while thiscall only using ecx register pass through that pointer.
+		// As we inject the 2nd parameter of type 'int' to shift the rest of the parameters all pushed onto the stack if needed, whenever the function is invoked the edx register leave as unspecified, preventing the abuse of injection in object codes or inline assembly.
+#else
+		using type = Ret __cdecl(Ths*, Args...);
+		// In x64 mode, functions as such with thiscall is same as cdecl, while the this argument treated as the first implicit parameter in which that pointer is one-to-one correspondence with rcx register to pass through with x64 calling convention.
 #endif
 	};
 	template <typename Ret, typename... Args>
@@ -150,7 +164,7 @@ namespace dyn
 		caller.pointer = ptr;
 		return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 	};
-	template <typename Ret = int, std::size_t Opt = 0, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Args...>::type>
+	template <typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Args...>::type>
 	Ret fn_call(void* ptr, Args... args)
 	{
 		return fn_call<Fn>(ptr, std::forward<Args>(args)...);
@@ -291,6 +305,17 @@ namespace dyn
 			caller.invoke = invoker;
 			this->obj = caller.object;
 		};
+		template <typename Ty, typename Ret, typename... Args>
+		constexpr function(Ret(Ty::* invoker)(Args...)) noexcept // Constructions with a member function reference treat as 'this->ref' in 'true' case.
+			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
+		{
+			union {
+				byte* object;
+				Ret(Ty::* invoke)(Args...);
+			} caller{};
+			caller.invoke = invoker;
+			this->obj = caller.object;
+		};
 		function(void* ptr, std::size_t sz) // Constructions with a storage duration treat as 'this->ref' in 'false' case.
 			: ref{ false }, obj{ new byte[sz] }, sz{ sz }, cap{ sz }
 		{
@@ -390,10 +415,19 @@ namespace dyn
 			caller.object = this->obj;
 			return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 		};
-		template <typename Ret = int, std::size_t Opt = 0, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Args...>::type>
+		template <typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Args...>::type, typename = typename std::enable_if<Opt != call_opt_thiscall>::type>
 		Ret operator ()(Args... args) const &
 		{
 			return this->operator ()<Fn>(std::forward<Args>(args)...);
+		};
+		template <typename Ret = int, std::size_t Opt = call_opt_thiscall, typename Ths = void, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Ths*, Args...>::type, typename = typename std::enable_if<Opt == call_opt_thiscall>::type>
+		Ret operator ()(Ths* ths, Args... args) const &
+		{
+#ifndef _WIN64
+			return this->operator ()<Fn>(ths, 0, std::forward<Args>(args)...);
+#else
+			return this->operator ()<Fn>(ths, std::forward<Args>(args)...);
+#endif
 		};
 		CONSTEXPR20 const byte* raw() const & noexcept
 		{

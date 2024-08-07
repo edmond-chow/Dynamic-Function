@@ -26,6 +26,18 @@ constexpr int __stdcall add(int x, int y)
 {
 	return x + y;
 };
+struct box
+{
+public:
+	int x;
+	constexpr box(int x)
+		: x{ x }
+	{};
+	constexpr int __thiscall sub(int y)
+	{
+		return this->x -= y;
+	};
+};
 #ifndef _WIN64
 INLINE_VAR constexpr std::uint8_t caller[]{
 	0x6a, 0x04, 0x6a, 0x03, 0xb8, 0x00, 0x00, 0x00, 0x00, 0xff, 0xd0, 0xc3
@@ -135,6 +147,18 @@ int __cdecl main()
 	std::wcout << L"	-> Test for an invocation with a pointer whether it works, while the object code of that caller stack frame processing dynamic relocation with operator as such." << std::endl << std::endl;
 	dyn::fn_free(ptr_caller);
 	dyn::fn_free(ptr_callee);
+	box mem_result{ 8 };
+	dyn::function mem_reference{ &box::sub };
+	mem_reference.operator ()<int, dyn::call_opt_thiscall>(&mem_result, 5);
+	if (mem_result.x == box{ 8 }.sub(3))
+	{
+		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates reference pointed to by '&box::sub' end up in Success." << std::endl;
+	}
+	else
+	{
+		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates reference pointed to by '&box::sub' end up in Failure." << std::endl;
+	}
+	std::wcout << L"	-> Test for an invocation with a member function pointer whether it works." << std::endl << std::endl;
 	std::wstring line;
 	std::getline(std::wcin, line);
 };
