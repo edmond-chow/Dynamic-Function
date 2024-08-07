@@ -420,8 +420,8 @@ namespace dyn
 		{
 			return this->operator ()<Fn>(std::forward<Args>(args)...);
 		};
-		template <typename Ret = int, std::size_t Opt = call_opt_thiscall, typename Ths = void, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Ths*, Args...>::type, typename = typename std::enable_if<Opt == call_opt_thiscall>::type>
-		Ret operator ()(Ths* ths, Args... args) const &
+		template <typename Ret = int, std::size_t Opt = call_opt_thiscall, typename Ths = void*, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Ths, Args...>::type, typename = typename std::enable_if<Opt == call_opt_thiscall && std::is_pointer<Ths>::value>::type>
+		Ret operator ()(Ths ths, Args... args) const &
 		{
 #ifndef _WIN64
 			return this->operator ()<Fn>(ths, 0, std::forward<Args>(args)...);

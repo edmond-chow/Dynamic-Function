@@ -26,17 +26,29 @@ constexpr int __stdcall add(int x, int y)
 {
 	return x + y;
 };
-struct box
+struct offset
+{
+public:
+	std::uint64_t o{};
+};
+struct base
 {
 public:
 	int x;
-	constexpr box(int x)
+	constexpr base(int x)
 		: x{ x }
 	{};
 	constexpr int __thiscall sub(int y)
 	{
 		return this->x -= y;
 	};
+};
+struct box : public offset, public base
+{
+public:
+	constexpr box(int x)
+		: base{ x }
+	{};
 };
 #ifndef _WIN64
 INLINE_VAR constexpr std::uint8_t caller[]{
@@ -148,9 +160,11 @@ int __cdecl main()
 	dyn::fn_free(ptr_caller);
 	dyn::fn_free(ptr_callee);
 	box mem_result{ 8 };
-	dyn::function mem_reference{ &box::sub };
-	mem_reference.operator ()<int, dyn::call_opt_thiscall>(&mem_result, 5);
-	if (mem_result.x == box{ 8 }.sub(3))
+	dyn::function mem_reference{ &base::sub };
+	// In this version of msvc, &box::sub and &base::sub both are just an address points to which the program transfer controls without that offset portion for which the caller adjust the this pointer.
+	mem_reference.operator ()<int, dyn::call_opt_thiscall, base*>(&mem_result, 5);
+	// In the circumstances, the 3rd template argument of 'operator ()' significantly aids for adjusting the pointer as if the program cases it dynamically within the chain of inheritance.
+	if (mem_result.x == box{ 8 }.sub(5))
 	{
 		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates reference pointed to by '&box::sub' end up in Success." << std::endl;
 	}
@@ -158,7 +172,7 @@ int __cdecl main()
 	{
 		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates reference pointed to by '&box::sub' end up in Failure." << std::endl;
 	}
-	std::wcout << L"	-> Test for an invocation with a member function pointer whether it works." << std::endl << std::endl;
+	std::wcout << L"	-> Test for an invocation with a member function pointer on multiple inheritance whether it works." << std::endl << std::endl;
 	std::wstring line;
 	std::getline(std::wcin, line);
 };
