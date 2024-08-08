@@ -102,11 +102,11 @@ int __cdecl main()
 	int result = fn_reference.operator ()<int, dyn::call_opt_stdcall>(3, 4);
 	if (result == add(3, 4))
 	{
-		std::wcout << L"#1:   The 'fn_reference' of type 'dyn::function' creates reference pointed to by 'add' end up in Success." << std::endl;
+		std::wcout << L"#1:   The 'fn_reference' of type 'dyn::function' creates a reference pointed to by 'add' end up in Success." << std::endl;
 	}
 	else
 	{
-		std::wcout << L"#1:   The 'fn_reference' of type 'dyn::function' creates reference pointed to by 'add' end up in Failure." << std::endl;
+		std::wcout << L"#1:   The 'fn_reference' of type 'dyn::function' creates a reference pointed to by 'add' end up in Failure." << std::endl;
 	}
 	std::wcout << L"	-> Ask for whether the return value does match up what we expect." << std::endl << std::endl;
 	dyn::function fn_callee{ callee };
@@ -161,16 +161,24 @@ int __cdecl main()
 	dyn::fn_free(ptr_callee);
 	box mem_result{ 8 };
 	dyn::function mem_reference{ &base::sub };
-	// In this version of msvc, &box::sub and &base::sub both are just an address points to which the program transfer controls without that offset portion for which the caller adjust the this pointer.
+	/*/
+	 * In this version of msvc, &box::sub and &base::sub both are just an address
+	 * points to which the program transfer controls without that offset portion for
+	 * which the caller adjust the this pointer.
+	/*/
 	mem_reference.operator ()<int, dyn::call_opt_thiscall, base*>(&mem_result, 5);
-	// In the circumstances, the 3rd template argument of 'operator ()' significantly aids for adjusting the pointer as if the program cases it dynamically within the chain of inheritance.
+	/*/
+	 * In the circumstances, the 3rd template argument of 'operator ()' significantly
+	 * aids for adjusting the pointer as if the program cases it dynamically within the
+	 * chain of inheritance.
+	/*/
 	if (mem_result.x == box{ 8 }.sub(5))
 	{
-		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates reference pointed to by '&box::sub' end up in Success." << std::endl;
+		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates a reference pointed to by '&box::sub' end up in Success." << std::endl;
 	}
 	else
 	{
-		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates reference pointed to by '&box::sub' end up in Failure." << std::endl;
+		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates a reference pointed to by '&box::sub' end up in Failure." << std::endl;
 	}
 	std::wcout << L"	-> Test for an invocation with a member function pointer on multiple inheritance whether it works." << std::endl << std::endl;
 	std::wstring line;

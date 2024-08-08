@@ -141,11 +141,23 @@ namespace dyn
 	public:
 #ifndef _WIN64
 		using type = Ret __fastcall(Ths*, int, Args...);
-		// In x86 mode, functions as such with thiscall likewise what we have in fastcall, while both the callee the responsibility to clean up the stack for arguments passed through by the caller, but fastcall using both ecx and edx registers pass through leftmost 2 arguments while thiscall only using ecx register pass through that pointer.
-		// As we inject the 2nd parameter of type 'int' to shift the rest of the parameters all pushed onto the stack if needed, whenever the function is invoked the edx register leave as unspecified, preventing the abuse of injection in object codes or inline assembly.
+		/*/
+		 * In x86 mode, functions as such with thiscall likewise what we have in fastcall,
+		 * while both the callee the responsibility to clean up the stack for arguments
+		 * passed through by the caller, but fastcall using both ecx and edx registers pass
+		 * through leftmost 2 arguments while thiscall only using ecx register pass through
+		 * that pointer. As we inject the 2nd parameter of type 'int' to shift the legacy
+		 * of the parameters all pushed onto the stack if needed, whenever the function is
+		 * invoked the edx register leave as unspecified, preventing the abuse of injection
+		 * on object codes or inline assembly.
+		/*/
 #else
 		using type = Ret __cdecl(Ths*, Args...);
-		// In x64 mode, functions as such with thiscall is same as cdecl, while the this argument treated as the first implicit parameter in which that pointer is one-to-one correspondence with rcx register to pass through with x64 calling convention.
+		/*/
+		 * In x64 mode, such functions with thiscall is same as cdecl, while the this
+		 * argument treated as the first implicit parameter in which that pointer is
+		 * correspondence with rcx register to pass through with x64 calling convention.
+		/*/
 #endif
 	};
 	template <typename Ret, typename... Args>
@@ -154,7 +166,10 @@ namespace dyn
 	public:
 		using type = Ret __vectorcall(Args...);
 	};
-	template <typename Fn, typename... Args, typename = typename std::enable_if<function_traits<Fn>::value>::type>
+	template <
+		typename Fn, typename... Args,
+		typename = typename std::enable_if<function_traits<Fn>::value>::type
+	>
 	typename function_traits<Fn>::ret fn_call(void* ptr, Args... args)
 	{
 		union {
@@ -164,7 +179,11 @@ namespace dyn
 		caller.pointer = ptr;
 		return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 	};
-	template <typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Args...>::type>
+	template <
+		typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args,
+		typename Fn = typename make_function_type<Opt, Ret, Args...>::type,
+		typename = typename std::enable_if<Opt != call_opt_thiscall>::type
+	>
 	Ret fn_call(void* ptr, Args... args)
 	{
 		return fn_call<Fn>(ptr, std::forward<Args>(args)...);
@@ -274,10 +293,17 @@ namespace dyn
 		std::size_t sz;
 		std::size_t cap;
 	public:
-		constexpr function() noexcept // Default constructions treat as 'this->ref' in 'false' case.
+		/*/
+		 * Default constructions treat as 'this->ref' in 'false' case.
+		/*/
+		constexpr function() noexcept
 			: ref{ false }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{};
-		CONSTEXPR20 function(const function& other) // Copy constructions with a preprocessed move action collapse 'this->cap' to 'this->sz' with 'new byte[other.sz]'.
+		/*/
+		 * Copy constructions with a preprocessed move action collapse 'this->cap' to
+		 * 'this->sz' with 'new byte[other.sz]'.
+		/*/
+		CONSTEXPR20 function(const function& other)
 			: ref{ other.ref }, obj{ other.obj }, sz{ other.sz }, cap{ other.sz }
 		{
 			if (!other.ref && other.obj != nullptr)
@@ -286,7 +312,11 @@ namespace dyn
 				std::copy_n(other.obj, other.sz, this->obj);
 			}
 		};
-		CONSTEXPR20 function(function&& other) noexcept // Move constructions are fundamentally the way memberised every subobject of the instance.
+		/*/
+		 * Move constructions are fundamentally the way memberised every subobject of the
+		 * instance.
+		/*/
+		CONSTEXPR20 function(function&& other) noexcept
 			: ref{ other.ref }, obj{ other.obj }, sz{ other.sz }, cap{ other.cap }
 		{
 			other.ref = false;
@@ -294,8 +324,11 @@ namespace dyn
 			other.sz = 0;
 			other.cap = 0;
 		};
+		/*/
+		 * Constructions with a function pointer treat as 'this->ref' in 'true' case.
+		/*/
 		template <typename Fn, typename = typename std::enable_if<function_traits<Fn>::value>::type>
-		constexpr function(Fn* invoker) noexcept // Constructions with a function reference treat as 'this->ref' in 'true' case.
+		constexpr function(Fn* invoker) noexcept
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
 			union {
@@ -305,8 +338,12 @@ namespace dyn
 			caller.invoke = invoker;
 			this->obj = caller.object;
 		};
+		/*/
+		 * Constructions with a member function pointer treat as 'this->ref' in 'true'
+		 * case in which type of that pointer is erased.
+		/*/
 		template <typename Ty, typename Ret, typename... Args>
-		constexpr function(Ret(Ty::* invoker)(Args...)) noexcept // Constructions with a member function reference treat as 'this->ref' in 'true' case.
+		constexpr function(Ret(Ty::* invoker)(Args...)) noexcept // 
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
 			union {
@@ -316,34 +353,58 @@ namespace dyn
 			caller.invoke = invoker;
 			this->obj = caller.object;
 		};
-		function(void* ptr, std::size_t sz) // Constructions with a storage duration treat as 'this->ref' in 'false' case.
+		/*/
+		 * Constructions with a storage duration to a given size treat as 'this->ref' in
+		 * 'false' case.
+		/*/
+		function(void* ptr, std::size_t sz)
 			: ref{ false }, obj{ new byte[sz] }, sz{ sz }, cap{ sz }
 		{
 			std::copy_n(reinterpret_cast<const byte*>(ptr), sz, this->obj);
 		};
+		/*/
+		 * Constructions with a fixed size array and object codes thereof treat as
+		 * 'this->ref' in 'false' case.
+		/*/
 		template <std::size_t sz>
-		CONSTEXPR20 function(const std::uint8_t(&dat)[sz]) // Constructions with object codes treat as 'this->ref' in 'false' case.
+		CONSTEXPR20 function(const std::uint8_t(&dat)[sz])
 			: ref{ false }, obj{ new byte[sz] }, sz{ sz }, cap{ sz }
 		{
 			std::copy_n(reinterpret_cast<const byte*>(dat), sz, this->obj);
 		};
-		CONSTEXPR20 function(std::size_t cap) // Constructions with a given capacity treat as 'this->ref' in 'false' case.
+		/*/
+		 * Constructions with a given capacity treat as 'this->ref' in 'false' case.
+		/*/
+		CONSTEXPR20 function(std::size_t cap)
 			: ref{ false }, obj{ new byte[cap] }, sz{ cap }, cap{ cap }
 		{
 			std::fill_n(this->obj, cap, byte{ 0xc3 });
 		};
-		CONSTEXPR20 function& operator =(const function& other) & // Copy assignment operators involve copy construction with initializer list whenever not be in self-assignment, forwarding the value of 'other.ref', move action only works with the exclusing case of the condition of if-clause thereof within the copy constructor.
+		/*/
+		 * Copy assignment operators involve copy construction with initializer list
+		 * whenever not be in self-assignment, forwarding the value of 'other.ref', move
+		 * action only works with the exclusing case of the condition of if-clause thereof
+		 * within the copy constructor.
+		/*/
+		CONSTEXPR20 function& operator =(const function& other) & // 
 		{
 			if (this == &other) { return *this; }
 			this->ref = other.ref;
-			if (other.ref || other.obj == nullptr) // The instance constructed with a function reference or default constructor at which the code not held on any storage duration allocated.
+			/*/
+			 * The instance constructed with a function pointer or default constructor at which
+			 * the code not held on any storage duration allocated.
+			/*/
+			if (other.ref || other.obj == nullptr)
 			{
 				this->obj = other.obj;
 				this->sz = other.sz;
 				this->cap = other.sz;
 				return *this;
 			}
-			else if (this->sz != other.sz && this->cap < other.sz) // Extending capacity when the storage duration is not enough space.
+			/*/
+			 * The capacity is extended when the storage duration is not enough space.
+			/*/
+			else if (this->sz != other.sz && this->cap < other.sz)
 			{
 				delete[] this->obj;
 				this->obj = new byte[other.sz];
@@ -352,7 +413,12 @@ namespace dyn
 			std::copy_n(other.obj, other.sz, this->obj);
 			return *this;
 		};
-		CONSTEXPR20 function& operator =(function&& other) & noexcept // Move assignment operators with 'delete[] this->obj' including the exclusing case of the condition of if-clause thereof within the copy constructor involve move construction with initializer list whenever not be in self-assignment.
+		/*/
+		 * Move assignment operators with 'delete[] this->obj' including the exclusing case
+		 * of the condition of if-clause thereof within the copy constructor involve move
+		 * construction with initializer list whenever not be in self-assignment.
+		/*/
+		CONSTEXPR20 function& operator =(function&& other) & noexcept
 		{
 			if (this == &other) { return *this; }
 			if (!this->ref && this->obj != nullptr) { delete[] this->obj; }
@@ -366,7 +432,12 @@ namespace dyn
 			other.cap = 0;
 			return *this;
 		};
-		CONSTEXPR20 ~function() noexcept // Destructions with 'delete[] this->obj' including the exclusing case of the condition of if-clause thereof within the copy constructor involve default construction.
+		/*/
+		 * Destructions with 'delete[] this->obj' including the exclusing case of the
+		 * condition of if-clause thereof within the copy constructor involve default
+		 * construction.
+		/*/
+		CONSTEXPR20 ~function() noexcept 
 		{
 			if (!this->ref && this->obj != nullptr) { delete[] this->obj; }
 			this->ref = false;
@@ -405,7 +476,10 @@ namespace dyn
 		{
 			return reinterpret_cast<const T&>(this->obj[sz]);
 		};
-		template <typename Fn, typename... Args, typename = typename std::enable_if<function_traits<Fn>::value>::type>
+		template <
+			typename Fn, typename... Args,
+			typename = typename std::enable_if<function_traits<Fn>::value>::type
+		>
 		typename function_traits<Fn>::ret operator ()(Args... args) const &
 		{
 			union {
@@ -415,12 +489,20 @@ namespace dyn
 			caller.object = this->obj;
 			return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 		};
-		template <typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Args...>::type, typename = typename std::enable_if<Opt != call_opt_thiscall>::type>
+		template <
+			typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args,
+			typename Fn = typename make_function_type<Opt, Ret, Args...>::type,
+			typename = typename std::enable_if<Opt != call_opt_thiscall>::type
+		>
 		Ret operator ()(Args... args) const &
 		{
 			return this->operator ()<Fn>(std::forward<Args>(args)...);
 		};
-		template <typename Ret = int, std::size_t Opt = call_opt_thiscall, typename Ths = void*, typename... Args, typename Fn = typename make_function_type<Opt, Ret, Ths, Args...>::type, typename = typename std::enable_if<Opt == call_opt_thiscall && std::is_pointer<Ths>::value>::type>
+		template <
+			typename Ret = int, std::size_t Opt = call_opt_thiscall, typename Ths = void*, typename... Args,
+			typename Fn = typename make_function_type<Opt, Ret, Ths, Args...>::type,
+			typename = typename std::enable_if<Opt == call_opt_thiscall>::type
+		>
 		Ret operator ()(Ths ths, Args... args) const &
 		{
 #ifndef _WIN64
