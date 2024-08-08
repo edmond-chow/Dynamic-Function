@@ -72,6 +72,15 @@ INLINE_VAR constexpr std::size_t callee_sz = std::extent_v<decltype(callee)>;
 	4:  03 44 24 08             add    eax,DWORD PTR [esp+0x8]
 	8:  c2 08 00                ret    0x8
 */
+INLINE_VAR constexpr std::uint8_t ths_callee[]{
+	0x8b, 0x01, 0x2b, 0x44, 0x24, 0x04, 0x89, 0x01, 0xc2, 0x04, 0x00
+};
+/*
+	0:  8b 01                   mov    eax,DWORD PTR [ecx]
+	2:  2b 44 24 04             sub    eax,DWORD PTR [esp+0x4]
+	6:  89 01                   mov    DWORD PTR [ecx],eax
+	8:  c2 04 00                ret    0x4
+*/
 #else
 INLINE_VAR constexpr std::uint8_t caller[]{
 	0xba, 0x04, 0x00, 0x00, 0x00, 0xb9, 0x03, 0x00, 0x00, 0x00, 0x48, 0xb8, 0x00, 0x00, 0x00, 0x00,
@@ -94,6 +103,15 @@ INLINE_VAR constexpr std::size_t callee_sz = std::extent_v<decltype(callee)>;
 /*
 	0:  8d 04 11                lea    eax,[rcx+rdx*1]
 	3:  c3                      ret
+*/
+INLINE_VAR constexpr std::uint8_t ths_callee[]{
+	0x8b, 0x01, 0x29, 0xd0, 0x89, 0x01, 0xc3
+};
+/*
+	0:  8b 01                   mov    eax,DWORD PTR [rcx]
+	2:  29 d0                   sub    eax,edx
+	4:  89 01                   mov    DWORD PTR [rcx],eax
+	6:  c3                      ret
 */
 #endif
 int __cdecl main()
@@ -159,20 +177,20 @@ int __cdecl main()
 	std::wcout << L"	-> Test for an invocation with a pointer whether it works, while the object code of that caller stack frame processing dynamic relocation with operator as such." << std::endl << std::endl;
 	dyn::fn_free(ptr_caller);
 	dyn::fn_free(ptr_callee);
-	box mem_result{ 8 };
+	box membx_result{ 8 };
 	dyn::function mem_reference{ &base::sub };
 	/*/
-	 * In this version of msvc, &box::sub and &base::sub both are just an address
-	 * points to which the program transfer controls without that offset portion for
-	 * which the caller adjust the this pointer.
+	 *   In this version of msvc, &box::sub and &base::sub both are just an address
+	 *   points to which the program transfer controls without that offset portion for
+	 *   which the caller adjust the this pointer.
 	/*/
-	mem_reference.operator ()<int, dyn::call_opt_thiscall, base*>(&mem_result, 5);
+	int mem_result = mem_reference.operator ()<int, dyn::call_opt_thiscall, base*>(&membx_result, 5);
 	/*/
-	 * In the circumstances, the 3rd template argument of 'operator ()' significantly
-	 * aids for adjusting the pointer as if the program cases it dynamically within the
-	 * chain of inheritance.
+	 *   In the circumstances, the 3rd template argument of 'operator ()' significantly
+	 *   aids for adjusting the pointer as if the program cases it dynamically within the
+	 *   chain of inheritance.
 	/*/
-	if (mem_result.x == box{ 8 }.sub(5))
+	if (mem_result == membx_result.x && mem_result == box{ 8 }.sub(5))
 	{
 		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates a reference pointed to by '&box::sub' end up in Success." << std::endl;
 	}
@@ -181,6 +199,18 @@ int __cdecl main()
 		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates a reference pointed to by '&box::sub' end up in Failure." << std::endl;
 	}
 	std::wcout << L"	-> Test for an invocation with a member function pointer on multiple inheritance whether it works." << std::endl << std::endl;
+	box ret_membx_callee{ 8 };
+	dyn::function mem_callee{ ths_callee };
+	int ret_mem_callee = mem_callee.operator ()<int, dyn::call_opt_thiscall, base*>(&ret_membx_callee, 5);
+	if (ret_mem_callee == ret_membx_callee.x && ret_mem_callee == mem_result)
+	{
+		std::wcout << L"#7:   The 'mem_callee' of type 'dyn::function' creates an instance end up in Success." << std::endl;
+	}
+	else
+	{
+		std::wcout << L"#7:   The 'mem_callee' of type 'dyn::function' creates an instance end up in Failure." << std::endl;
+	}
+	std::wcout << L"	-> Test for an invocation with a member function pointer on multiple inheritance with user inserted object codes whether it works." << std::endl << std::endl;
 	std::wstring line;
 	std::getline(std::wcin, line);
 };
