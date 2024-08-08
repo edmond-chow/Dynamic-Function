@@ -213,4 +213,5 @@ int __cdecl main()
 	std::wcout << L"	-> Test for an invocation with a member function pointer on multiple inheritance with user inserted object codes whether it works." << std::endl << std::endl;
 	std::wstring line;
 	std::getline(std::wcin, line);
+	return EXIT_SUCCESS;
 };
