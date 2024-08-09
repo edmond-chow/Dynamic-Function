@@ -366,9 +366,9 @@ namespace dyn
 		 *   Constructions with a fixed size array and object codes thereof treat as
 		 *   'this->ref' in 'false' case.
 		/*/
-		template <std::size_t sz>
-		CONSTEXPR20 function(const std::uint8_t(&dat)[sz])
-			: ref{ false }, obj{ new byte[sz] }, sz{ sz }, cap{ sz }
+		template <std::size_t Sz>
+		CONSTEXPR20 function(const std::uint8_t(&dat)[Sz])
+			: ref{ false }, obj{ new byte[Sz] }, sz{ Sz }, cap{ Sz }
 		{
 			std::copy_n(reinterpret_cast<const byte*>(dat), sz, this->obj);
 		};
