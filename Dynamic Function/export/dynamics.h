@@ -301,14 +301,14 @@ namespace dyn
 		{};
 		/*/
 		 *   Copy constructions with a preprocessed move action collapse 'this->cap' to
-		 *   'this->sz' with 'new byte[other.sz]'.
+		 *   'this->sz' with 'new byte[other.cap]'.
 		/*/
 		CONSTEXPR20 function(const function& other)
-			: ref{ other.ref }, obj{ other.obj }, sz{ other.sz }, cap{ other.sz }
+			: ref{ other.ref }, obj{ other.obj }, sz{ other.sz }, cap{ other.cap }
 		{
 			if (!other.ref && other.obj != nullptr)
 			{
-				this->obj = new byte[other.sz];
+				this->obj = new byte[other.cap];
 				std::copy_n(other.obj, other.sz, this->obj);
 			}
 		};
@@ -370,7 +370,7 @@ namespace dyn
 		CONSTEXPR20 function(const std::uint8_t(&dat)[Sz])
 			: ref{ false }, obj{ new byte[Sz] }, sz{ Sz }, cap{ Sz }
 		{
-			std::copy_n(reinterpret_cast<const byte*>(dat), sz, this->obj);
+			std::copy_n(reinterpret_cast<const byte*>(dat), Sz, this->obj);
 		};
 		/*/
 		 *   Constructions with a given capacity treat as 'this->ref' in 'false' case.
@@ -382,14 +382,15 @@ namespace dyn
 		};
 		/*/
 		 *   Copy assignment operators involve copy construction with initializer list
-		 *   whenever not be in self-assignment, forwarding the value of 'other.ref', move
-		 *   action only works with the exclusing case of the condition of if-clause thereof
-		 *   within the copy constructor.
+		 *   whenever not be in self-assignment, forwarding the value of 'other.ref' and
+		 *   'other.sz', move action only works with the exclusing case of the condition of
+		 *   if-clause thereof within the copy constructor.
 		/*/
-		CONSTEXPR20 function& operator =(const function& other) & // 
+		CONSTEXPR20 function& operator =(const function& other) &
 		{
 			if (this == &other) { return *this; }
 			this->ref = other.ref;
+			this->sz = other.sz;
 			/*/
 			 *   The instance constructed with a function pointer or default constructor at which
 			 *   the code not held on any storage duration allocated.
@@ -397,19 +398,18 @@ namespace dyn
 			if (other.ref || other.obj == nullptr)
 			{
 				this->obj = other.obj;
-				this->sz = other.sz;
-				this->cap = other.sz;
+				this->cap = other.cap;
 				return *this;
 			}
 			/*/
 			 *   The capacity is extended when the storage duration is not enough space.
 			/*/
-			else if (this->sz != other.sz && this->cap < other.sz)
+			else if (this->sz != other.sz && this->cap < other.cap)
 			{
 				delete[] this->obj;
-				this->obj = new byte[other.sz];
+				this->obj = new byte[other.cap];
+				this->cap = other.cap;
 			}
-			this->sz = other.sz;
 			std::copy_n(other.obj, other.sz, this->obj);
 			return *this;
 		};
