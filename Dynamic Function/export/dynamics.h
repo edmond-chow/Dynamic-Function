@@ -73,32 +73,36 @@ namespace dyn
 	struct function_traits
 		: public std::bool_constant<false>
 	{};
-#pragma push_macro("FUNCTION_TRAITS")
-#pragma push_macro("FUNCTION_TRAITS_WITH_NO_EXCEPT")
-#define FUNCTION_TRAITS(CALL_OPT, NO_EXCEPT)\
-	template <typename Ret, typename... Args>\
-	struct function_traits<Ret CALL_OPT(Args...) NO_EXCEPT>\
-		: public function_proto<Ret, Args...>, public std::bool_constant<true>\
-	{\
-	public:\
-		using proto = function_proto<Ret, Args...>;\
+	template <typename Ret, typename... Args>
+	struct function_traits<Ret __cdecl(Args...)>
+		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+	{
+	public:
+		using proto = function_proto<Ret, Args...>;
 	};
-#if (__cplusplus >= 201703L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201703L) && (_MSC_VER >= 1800))
-#define FUNCTION_TRAITS_WITH_NO_EXCEPT(CALL_OPT)\
-	FUNCTION_TRAITS(CALL_OPT, )\
-	FUNCTION_TRAITS(CALL_OPT, noexcept)
-#else
-#define FUNCTION_TRAITS_WITH_NO_EXCEPT(CALL_OPT)\
-	FUNCTION_TRAITS(CALL_OPT, )
-#endif
-	FUNCTION_TRAITS_WITH_NO_EXCEPT(__cdecl)
 #ifndef _WIN64
-	FUNCTION_TRAITS_WITH_NO_EXCEPT(__stdcall)
-	FUNCTION_TRAITS_WITH_NO_EXCEPT(__fastcall)
+	template <typename Ret, typename... Args>
+	struct function_traits<Ret __stdcall(Args...)>
+		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+	{
+	public:
+		using proto = function_proto<Ret, Args...>;
+	};
+	template <typename Ret, typename... Args>
+	struct function_traits<Ret __fastcall(Args...)>
+		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+	{
+	public:
+		using proto = function_proto<Ret, Args...>;
+	};
 #endif
-	FUNCTION_TRAITS_WITH_NO_EXCEPT(__vectorcall)
-#pragma pop_macro("FUNCTION_TRAITS_WITH_NO_EXCEPT")
-#pragma pop_macro("FUNCTION_TRAITS")
+	template <typename Ret, typename... Args>
+	struct function_traits<Ret __vectorcall(Args...)>
+		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+	{
+	public:
+		using proto = function_proto<Ret, Args...>;
+	};
 #if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201402L) && (_MSC_VER >= 1800))
 	template <typename Fn>
 	INLINE_VAR constexpr bool function_traits_v = function_traits<Fn>::value;
@@ -338,12 +342,77 @@ namespace dyn
 			caller.invoke = invoker;
 			this->obj = caller.object;
 		};
+#ifndef _WIN64
 		/*/
 		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
-		 *   case in which type of that pointer is erased.
+		 *   case in which type of that pointer is erased for cdecl.
 		/*/
 		template <typename Ty, typename Ret, typename... Args>
-		constexpr function(Ret(Ty::* invoker)(Args...)) noexcept // 
+		constexpr function(Ret(__cdecl Ty::* invoker)(Args...)) noexcept
+			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
+		{
+			union {
+				byte* object;
+				Ret(Ty::* invoke)(Args...);
+			} caller{};
+			caller.invoke = invoker;
+			this->obj = caller.object;
+		};
+		/*/
+		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
+		 *   case in which type of that pointer is erased for stdcall.
+		/*/
+		template <typename Ty, typename Ret, typename... Args>
+		constexpr function(Ret(__stdcall Ty::* invoker)(Args...)) noexcept
+			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
+		{
+			union {
+				byte* object;
+				Ret(Ty::* invoke)(Args...);
+			} caller{};
+			caller.invoke = invoker;
+			this->obj = caller.object;
+		};
+		/*/
+		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
+		 *   case in which type of that pointer is erased for fastcall.
+		/*/
+		template <typename Ty, typename Ret, typename... Args>
+		constexpr function(Ret(__fastcall Ty::* invoker)(Args...)) noexcept
+			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
+		{
+			union {
+				byte* object;
+				Ret(Ty::* invoke)(Args...);
+			} caller{};
+			caller.invoke = invoker;
+			this->obj = caller.object;
+		};
+#endif
+		/*/
+		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
+		 *   case in which type of that pointer is erased for vectorcall.
+		/*/
+		template <typename Ty, typename Ret, typename... Args>
+		constexpr function(Ret(__vectorcall Ty::* invoker)(Args...)) noexcept
+			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
+		{
+			union {
+				byte* object;
+				Ret(Ty::* invoke)(Args...);
+			} caller{};
+			caller.invoke = invoker;
+			this->obj = caller.object;
+		};
+		/*/
+		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
+		 *   case in which type of that pointer is erased for thiscall.
+		/*/
+		template <
+			typename Ty, typename Ret, typename... Args,
+			typename = typename std::enable_if<std::is_same<Ret(__thiscall Ty::*)(Args...), Ret(Ty::*)(Args...)>::value>::type
+		>
+		constexpr function(Ret(__thiscall Ty::* invoker)(Args...)) noexcept
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
 			union {
