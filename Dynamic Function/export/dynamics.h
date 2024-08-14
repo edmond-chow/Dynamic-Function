@@ -75,9 +75,10 @@ namespace dyn
 	{};
 	template <typename Ret, typename... Args>
 	struct function_traits<Ret __cdecl(Args......)>
-		/*/
-		 *   'Ret __cdecl(Args......)' and 'Ret(Args......)' are always the same.
-		/*/
+	/*/
+	 *   We just provide a specialises of 'function_traits<Fn>' for vararg.
+	 *   'Ret __cdecl(Args......)' and 'Ret(Args......)' are always the same.
+	/*/
 		: public function_proto<Ret, Args...>, public std::bool_constant<true>
 	{
 	public:

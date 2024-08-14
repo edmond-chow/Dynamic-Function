@@ -164,7 +164,6 @@ int __cdecl main()
 		std::wcout << L"#3:   The 'fn_caller' of type 'dyn::function' creates an instance end up in Failure." << std::endl;
 	}
 	std::wcout << L"	-> The program creates new instances, the object code of that caller stack frame processing dynamic relocation with operator as such." << std::endl << std::endl;
-	
 	union {
 		void* pointer;
 		int(__stdcall* invoke)(int, int);
