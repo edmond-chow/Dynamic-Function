@@ -75,6 +75,9 @@ namespace dyn
 	{};
 	template <typename Ret, typename... Args>
 	struct function_traits<Ret __cdecl(Args...)>
+	/*/
+	 *   'Ret __cdecl(Args...)' and 'Ret(Args...)' are always the same.
+	/*/
 		: public function_proto<Ret, Args...>, public std::bool_constant<true>
 	{
 	public:
@@ -83,6 +86,9 @@ namespace dyn
 #ifndef _WIN64
 	template <typename Ret, typename... Args>
 	struct function_traits<Ret __stdcall(Args...)>
+	/*/
+	 *   'Ret __stdcall(Args...)' and 'Ret(Args...)' are the same in x64.
+	/*/
 		: public function_proto<Ret, Args...>, public std::bool_constant<true>
 	{
 	public:
@@ -90,6 +96,9 @@ namespace dyn
 	};
 	template <typename Ret, typename... Args>
 	struct function_traits<Ret __fastcall(Args...)>
+	/*/
+	 *   'Ret __fastcall(Args...)' and 'Ret(Args...)' are the same in x64.
+	/*/
 		: public function_proto<Ret, Args...>, public std::bool_constant<true>
 	{
 	public:
@@ -118,26 +127,28 @@ namespace dyn
 	struct make_function_type<call_opt_cdecl, Ret, Args...>
 	{
 	public:
+		/*/
+		 *   'Ret __cdecl(Args...)' and 'Ret(Args...)' are always the same.
+		/*/
 		using type = Ret __cdecl(Args...);
-		static_assert(std::is_same<type, Ret(Args...)>::value, "Always true in any case!");
 	};
 	template <typename Ret, typename... Args>
 	struct make_function_type<call_opt_stdcall, Ret, Args...>
 	{
 	public:
+		/*/
+		 *   'Ret __stdcall(Args...)' and 'Ret(Args...)' are the same in x64.
+		/*/
 		using type = Ret __stdcall(Args...);
-#ifdef _WIN64
-		static_assert(std::is_same<type, Ret(Args...)>::value, "Always true in x64!");
-#endif
 	};
 	template <typename Ret, typename... Args>
 	struct make_function_type<call_opt_fastcall, Ret, Args...>
 	{
 	public:
+		/*/
+		 *   'Ret __fastcall(Args...)' and 'Ret(Args...)' are the same in x64.
+		/*/
 		using type = Ret __fastcall(Args...);
-#ifdef _WIN64
-		static_assert(std::is_same<type, Ret(Args...)>::value, "Always true in x64!");
-#endif
 	};
 	template <typename Ret, typename Ths, typename... Args>
 	struct make_function_type<call_opt_thiscall, Ret, Ths*, Args...>
@@ -149,18 +160,19 @@ namespace dyn
 		 *   In x86 mode, functions as such with thiscall likewise what we have in fastcall,
 		 *   while both the callee the responsibility to clean up the stack for arguments
 		 *   passed through by the caller, but fastcall using both ecx and edx registers pass
-		 *   through leftmost 2 arguments while thiscall only using ecx register pass through
-		 *   that pointer. As we inject the 2nd parameter of type 'int' to shift the legacy
-		 *   of the parameters all pushed onto the stack if needed, whenever the function is
-		 *   invoked the edx register leave as unspecified, preventing the abuse of injection
-		 *   on object codes or inline assembly.
+		 *   through the first 2 dword arguments while thiscall only using ecx register pass
+		 *   through that pointer. As we inject the 2nd parameter of type 'int' to shift the
+		 *   legacy of the parameters all pushed onto the stack if needed, whenever functions
+		 *   are invoked where the edx register left as unspecified, preventing the abuse of
+		 *   injection on object codes or inline assembly.
 		/*/
 #else
 		using type = Ret __cdecl(Ths*, Args...);
 		/*/
 		 *   In x64 mode, such functions with thiscall is same as cdecl, while the this
 		 *   argument treated as the first implicit parameter in which that pointer is
-		 *   correspondence with rcx register to pass through with x64 calling convention.
+		 *   correspondence with rcx register to pass through with the default x64 calling
+		 *   convention.
 		/*/
 #endif
 	};
@@ -173,6 +185,10 @@ namespace dyn
 	template <
 		typename Fn, typename... Args,
 		typename = typename std::enable_if<function_traits<Fn>::value>::type
+		/*/
+		 *   This function prototype only specializes with global function pointer in which
+		 *   'function_traits<Fn>' is constrained by type.
+		/*/
 	>
 	typename function_traits<Fn>::ret fn_call(void* ptr, Args... args)
 	{
@@ -187,6 +203,10 @@ namespace dyn
 		typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args,
 		typename Fn = typename make_function_type<Opt, Ret, Args...>::type,
 		typename = typename std::enable_if<Opt != call_opt_thiscall>::type
+		/*/
+		 *   This function prototype only specializes with global function pointer at which
+		 *   the 'Opt' non-type template argument controls.
+		/*/
 	>
 	Ret fn_call(void* ptr, Args... args)
 	{
@@ -408,10 +428,10 @@ namespace dyn
 		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
 		 *   case in which type of that pointer is erased for thiscall.
 		/*/
-		template <
-			typename Ty, typename Ret, typename... Args,
-			typename = typename std::enable_if<std::is_same<Ret(__thiscall Ty::*)(Args...), Ret(Ty::*)(Args...)>::value>::type
-		>
+		template <typename Ty, typename Ret, typename... Args>
+		/*/
+		 *   'Ret(__thiscall Ty::*)(Args...)' and 'Ret(Ty::*)(Args...)' are always the same.
+		/*/
 		constexpr function(Ret(__thiscall Ty::* invoker)(Args...)) noexcept
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
@@ -562,6 +582,10 @@ namespace dyn
 			typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args,
 			typename Fn = typename make_function_type<Opt, Ret, Args...>::type,
 			typename = typename std::enable_if<Opt != call_opt_thiscall>::type
+			/*/
+			 *   This function prototype only specializes with global function pointer at which
+			 *   the 'Opt' non-type template argument controls.
+			/*/
 		>
 		Ret operator ()(Args... args) const &
 		{
@@ -571,12 +595,32 @@ namespace dyn
 			typename Ret = int, std::size_t Opt = call_opt_thiscall, typename Ths = void*, typename... Args,
 			typename Fn = typename make_function_type<Opt, Ret, Ths, Args...>::type,
 			typename = typename std::enable_if<Opt == call_opt_thiscall>::type
+			/*/
+			 *   This function prototype only specializes with member function pointer at which
+			 *   the 'Opt' non-type template argument controls.
+			/*/
 		>
 		Ret operator ()(Ths ths, Args... args) const &
 		{
 #ifndef _WIN64
+			/*/
+			 *   In x86 mode, functions as such with thiscall likewise what we have in fastcall,
+			 *   while both the callee the responsibility to clean up the stack for arguments
+			 *   passed through by the caller, but fastcall using both ecx and edx registers pass
+			 *   through the first 2 dword arguments while thiscall only using ecx register pass
+			 *   through that pointer. As we inject the 2nd parameter of type 'int' to shift the
+			 *   legacy of the parameters all pushed onto the stack if needed, whenever functions
+			 *   are invoked where the edx register left as unspecified, preventing the abuse of
+			 *   injection on object codes or inline assembly.
+			/*/
 			return this->operator ()<Fn>(ths, 0, std::forward<Args>(args)...);
 #else
+			/*/
+			 *   In x64 mode, such functions with thiscall is same as cdecl, while the this
+			 *   argument treated as the first implicit parameter in which that pointer is
+			 *   correspondence with rcx register to pass through with the default x64 calling
+			 *   convention.
+			/*/
 			return this->operator ()<Fn>(ths, std::forward<Args>(args)...);
 #endif
 		};
