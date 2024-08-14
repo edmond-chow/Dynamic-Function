@@ -74,6 +74,16 @@ namespace dyn
 		: public std::bool_constant<false>
 	{};
 	template <typename Ret, typename... Args>
+	struct function_traits<Ret __cdecl(Args......)>
+		/*/
+		 *   'Ret __cdecl(Args......)' and 'Ret(Args......)' are always the same.
+		/*/
+		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+	{
+	public:
+		using proto = function_proto<Ret, Args...>;
+	};
+	template <typename Ret, typename... Args>
 	struct function_traits<Ret __cdecl(Args...)>
 	/*/
 	 *   'Ret __cdecl(Args...)' and 'Ret(Args...)' are always the same.

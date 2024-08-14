@@ -13,6 +13,7 @@
  *   See the License for the specific language governing permissions and
  *   limitations under the License.
  */
+#include <cstdarg>
 #include <string>
 #include <iostream>
 #include <dynamics.h>
@@ -25,6 +26,19 @@
 constexpr int __stdcall add(int x, int y)
 {
 	return x + y;
+};
+int __cdecl sum(int count, ...)
+{
+	int result{ 0 };
+	va_list ap;
+	va_start(ap, count);
+	while (count > 0)
+	{
+		result += va_arg(ap, int);
+		--count;
+	}
+	va_end(ap);
+	return result;
 };
 struct offset
 {
@@ -150,29 +164,46 @@ int __cdecl main()
 		std::wcout << L"#3:   The 'fn_caller' of type 'dyn::function' creates an instance end up in Failure." << std::endl;
 	}
 	std::wcout << L"	-> The program creates new instances, the object code of that caller stack frame processing dynamic relocation with operator as such." << std::endl << std::endl;
+	
+	union {
+		void* pointer;
+		int(__stdcall* invoke)(int, int);
+	} casing_ptr_reference{};
+	casing_ptr_reference.invoke = &add;
+	void* ptr_reference = casing_ptr_reference.pointer;
+	int ptr_result = dyn::fn_call<int, dyn::call_opt_stdcall>(ptr_reference, 3, 4);
+	if (ptr_result == result)
+	{
+		std::wcout << L"#4:   The 'ptr_reference' with a raw pointer referring to 'add' invoked directly as a function end up in Success." << std::endl;
+	}
+	else
+	{
+		std::wcout << L"#4:   The 'ptr_reference' with a raw pointer referring to 'add' invoked directly as a function end up in Failure." << std::endl;
+	}
+	std::wcout << L"	-> Test for an invocation with a raw pointer whether it works." << std::endl << std::endl;
 	void* ptr_callee = dyn::fn_malloc(callee_sz);
 	memcpy(ptr_callee, callee, callee_sz);
 	int ret_ptr_callee = dyn::fn_call<int, dyn::call_opt_stdcall>(ptr_callee, 3, 4);
 	if (ret_ptr_callee == result)
 	{
-		std::wcout << L"#4:   The 'ptr_callee' with a storage duration invoked directly as a function end up in Success." << std::endl;
+		std::wcout << L"#5:   The 'ptr_callee' with a storage duration invoked directly as a function end up in Success." << std::endl;
 	}
 	else
 	{
-		std::wcout << L"#4:   The 'ptr_callee' with a storage duration invoked directly as a function end up in Failure." << std::endl;
+		std::wcout << L"#5:   The 'ptr_callee' with a storage duration invoked directly as a function end up in Failure." << std::endl;
 	}
-	std::wcout << L"	-> Test for an invocation with a pointer whether it works." << std::endl << std::endl;
+	std::wcout << L"	-> Test for an invocation with a pointer whether it works, while the object code of that pure 'add' function given controls to yleid a value." << std::endl << std::endl;
 	void* ptr_caller = dyn::fn_malloc(caller_sz);
 	memcpy(ptr_caller, caller, caller_sz);
 	reinterpret_cast<intptr_t&>(reinterpret_cast<std::uint8_t*>(ptr_caller)[caller_offset]) = reinterpret_cast<intptr_t>(ptr_callee);
 	int ret_ptr_caller = dyn::fn_call<int, dyn::call_opt_stdcall>(ptr_caller);
 	if (ret_ptr_caller == result)
 	{
-		std::wcout << L"#5:   The 'ptr_caller' with a storage duration invoked directly as a function end up in Success." << std::endl;
+		std::wcout << L"#6:   The 'ptr_caller' with a storage duration invoked directly as a function end up in Success." << std::endl;
 	}
 	else
 	{
-		std::wcout << L"#5:   The 'ptr_caller' with a storage duration invoked directly as a function end up in Failure." << std::endl;
+		std::wcout << L"#6:   The 'ptr_caller' with a storage duration invoked directly as a function end up in Failure." << std::endl;
 	}
 	std::wcout << L"	-> Test for an invocation with a pointer whether it works, while the object code of that caller stack frame processing dynamic relocation with operator as such." << std::endl << std::endl;
 	dyn::fn_free(ptr_caller);
@@ -192,11 +223,11 @@ int __cdecl main()
 	/*/
 	if (mem_result == membx_result.x && mem_result == box{ 8 }.sub(5))
 	{
-		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates a reference pointed to by '&box::sub' end up in Success." << std::endl;
+		std::wcout << L"#7:   The 'mem_reference' of type 'dyn::function' creates a reference pointed to by '&box::sub' end up in Success." << std::endl;
 	}
 	else
 	{
-		std::wcout << L"#6:   The 'mem_reference' of type 'dyn::function' creates a reference pointed to by '&box::sub' end up in Failure." << std::endl;
+		std::wcout << L"#7:   The 'mem_reference' of type 'dyn::function' creates a reference pointed to by '&box::sub' end up in Failure." << std::endl;
 	}
 	std::wcout << L"	-> Test for an invocation with a member function pointer on multiple inheritance whether it works." << std::endl << std::endl;
 	box ret_membx_callee{ 8 };
@@ -204,13 +235,40 @@ int __cdecl main()
 	int ret_mem_callee = mem_callee.operator ()<int, dyn::call_opt_thiscall, base*>(&ret_membx_callee, 5);
 	if (ret_mem_callee == ret_membx_callee.x && ret_mem_callee == mem_result)
 	{
-		std::wcout << L"#7:   The 'mem_callee' of type 'dyn::function' creates an instance end up in Success." << std::endl;
+		std::wcout << L"#8:   The 'mem_callee' of type 'dyn::function' creates an instance end up in Success." << std::endl;
 	}
 	else
 	{
-		std::wcout << L"#7:   The 'mem_callee' of type 'dyn::function' creates an instance end up in Failure." << std::endl;
+		std::wcout << L"#8:   The 'mem_callee' of type 'dyn::function' creates an instance end up in Failure." << std::endl;
 	}
 	std::wcout << L"	-> Test for an invocation with a member function pointer on multiple inheritance with user inserted object codes whether it works." << std::endl << std::endl;
+	dyn::function fn_vararg_reference{ sum };
+	int vararg_result = fn_vararg_reference.operator ()<int, dyn::call_opt_cdecl>(4, 37, 63, 87, 91);
+	if (vararg_result == sum(4, 37, 63, 87, 91))
+	{
+		std::wcout << L"#9:   The 'fn_vararg_reference' of type 'dyn::function' creates a reference pointed to by 'sum' end up in Success." << std::endl;
+	}
+	else
+	{
+		std::wcout << L"#9:   The 'fn_vararg_reference' of type 'dyn::function' creates a reference pointed to by 'sum' end up in Failure." << std::endl;
+	}
+	std::wcout << L"	-> Ask for whether the return value does match up what we expect when there is vararg." << std::endl << std::endl;
+	union {
+		void* pointer;
+		int(__cdecl* invoke)(int, ...);
+	} casing_ptr_vararg_reference{};
+	casing_ptr_vararg_reference.invoke = &sum;
+	void* ptr_vararg_reference = casing_ptr_vararg_reference.pointer;
+	int ptr_vararg_result = dyn::fn_call<int, dyn::call_opt_cdecl>(ptr_vararg_reference, 4, 37, 63, 87, 91);
+	if (ptr_vararg_result == vararg_result)
+	{
+		std::wcout << L"#10:   The 'ptr_vararg_reference' with a raw pointer referring to '&sum' invoked directly as a function end up in Success." << std::endl;
+	}
+	else
+	{
+		std::wcout << L"#10:   The 'ptr_vararg_reference' with a raw pointer referring to '&sum' invoked directly as a function end up in Failure." << std::endl;
+	}
+	std::wcout << L"	-> Test for an invocation with a raw pointer whether it works when there is vararg." << std::endl << std::endl;
 	std::wstring line;
 	std::getline(std::wcin, line);
 	return EXIT_SUCCESS;
