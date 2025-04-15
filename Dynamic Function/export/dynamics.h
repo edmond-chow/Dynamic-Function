@@ -41,6 +41,11 @@ namespace dyn
 	extern "C" __declspec(dllimport) void* __stdcall fn_realloc(void* ptr, std::size_t sz);
 	extern "C" __declspec(dllimport) void __stdcall fn_free(void* ptr);
 	/* specializes */
+	INLINE_VAR constexpr std::size_t call_opt_cdecl = 0;
+	INLINE_VAR constexpr std::size_t call_opt_stdcall = 1;
+	INLINE_VAR constexpr std::size_t call_opt_fastcall = 2;
+	INLINE_VAR constexpr std::size_t call_opt_thiscall = 3;
+	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 4;
 	template <std::size_t Ix, typename... Args>
 	struct argument_traits
 		: std::bool_constant<false>
@@ -83,6 +88,7 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
+		static constexpr std::size_t opt = call_opt_cdecl;
 	};
 	template <typename Ret, typename... Args>
 	struct function_traits<Ret __cdecl(Args...)>
@@ -93,6 +99,7 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
+		static constexpr std::size_t opt = call_opt_cdecl;
 	};
 #ifndef _WIN64
 	template <typename Ret, typename... Args>
@@ -104,6 +111,7 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
+		static constexpr std::size_t opt = call_opt_stdcall;
 	};
 	template <typename Ret, typename... Args>
 	struct function_traits<Ret __fastcall(Args...)>
@@ -114,6 +122,7 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
+		static constexpr std::size_t opt = call_opt_fastcall;
 	};
 #endif
 	template <typename Ret, typename... Args>
@@ -122,16 +131,12 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
+		static constexpr std::size_t opt = call_opt_vectorcall;
 	};
 #if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201402L) && (_MSC_VER >= 1800))
 	template <typename Fn>
 	INLINE_VAR constexpr bool function_traits_v = function_traits<Fn>::value;
 #endif
-	INLINE_VAR constexpr std::size_t call_opt_cdecl = 0;
-	INLINE_VAR constexpr std::size_t call_opt_stdcall = 1;
-	INLINE_VAR constexpr std::size_t call_opt_fastcall = 2;
-	INLINE_VAR constexpr std::size_t call_opt_thiscall = 3;
-	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 4;
 	template <std::size_t Opt = call_opt_cdecl, typename Ret = void, typename... Args>
 	struct make_function_type;
 	template <typename Ret, typename... Args>
