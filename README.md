@@ -28,5 +28,6 @@ The rest just clean up inside callee by the last ret instruction with offset.
 In x64 mode, such functions with thiscall is same as cdecl, while the this
 argument treated as the first implicit parameter in which that pointer is
 correspondence with rcx register to pass through with the default x64 calling
-convention. The rest other than vector call also comply with the default x64
-calling convention.
+convention. The rest other than vectorcall also comply with the default x64
+calling convention to which the program may propagate the arguments with
+variadic-calls.
