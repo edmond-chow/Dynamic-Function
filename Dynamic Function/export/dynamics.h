@@ -41,11 +41,14 @@ namespace dyn
 	extern "C" __declspec(dllimport) void* __stdcall fn_realloc(void* ptr, std::size_t sz);
 	extern "C" __declspec(dllimport) void __stdcall fn_free(void* ptr);
 	/* specializes */
-	INLINE_VAR constexpr std::size_t call_opt_cdecl = 0;
-	INLINE_VAR constexpr std::size_t call_opt_stdcall = 1;
-	INLINE_VAR constexpr std::size_t call_opt_fastcall = 2;
-	INLINE_VAR constexpr std::size_t call_opt_thiscall = 3;
-	INLINE_VAR constexpr std::size_t call_opt_vectorcall = 4;
+	enum struct option : std::size_t
+	{
+		c_decl = 0,
+		stdcall = 1,
+		fastcall = 2,
+		thiscall = 3,
+		vectorcall = 4,
+	};
 	template <std::size_t Ix, typename... Args>
 	struct argument_traits
 		: std::bool_constant<false>
@@ -88,7 +91,7 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
-		static constexpr std::size_t opt = call_opt_cdecl;
+		static constexpr option opt = option::c_decl;
 	};
 	template <typename Ret, typename... Args>
 	struct function_traits<Ret __cdecl(Args...)>
@@ -99,7 +102,7 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
-		static constexpr std::size_t opt = call_opt_cdecl;
+		static constexpr option opt = option::c_decl;
 	};
 #ifndef _WIN64
 	template <typename Ret, typename... Args>
@@ -111,7 +114,7 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
-		static constexpr std::size_t opt = call_opt_stdcall;
+		static constexpr option opt = option::stdcall;
 	};
 	template <typename Ret, typename... Args>
 	struct function_traits<Ret __fastcall(Args...)>
@@ -122,7 +125,7 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
-		static constexpr std::size_t opt = call_opt_fastcall;
+		static constexpr option opt = option::fastcall;
 	};
 #endif
 	template <typename Ret, typename... Args>
@@ -131,16 +134,16 @@ namespace dyn
 	{
 	public:
 		using proto = function_proto<Ret, Args...>;
-		static constexpr std::size_t opt = call_opt_vectorcall;
+		static constexpr option opt = option::vectorcall;
 	};
 #if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201402L) && (_MSC_VER >= 1800))
 	template <typename Fn>
 	INLINE_VAR constexpr bool function_traits_v = function_traits<Fn>::value;
 #endif
-	template <std::size_t Opt = call_opt_cdecl, typename Ret = void, typename... Args>
+	template <option Opt = option::c_decl, typename Ret = void, typename... Args>
 	struct make_function_type;
 	template <typename Ret, typename... Args>
-	struct make_function_type<call_opt_cdecl, Ret, Args...>
+	struct make_function_type<option::c_decl, Ret, Args...>
 	{
 	public:
 		/*/
@@ -149,7 +152,7 @@ namespace dyn
 		using type = Ret __cdecl(Args...);
 	};
 	template <typename Ret, typename... Args>
-	struct make_function_type<call_opt_stdcall, Ret, Args...>
+	struct make_function_type<option::stdcall, Ret, Args...>
 	{
 	public:
 		/*/
@@ -158,7 +161,7 @@ namespace dyn
 		using type = Ret __stdcall(Args...);
 	};
 	template <typename Ret, typename... Args>
-	struct make_function_type<call_opt_fastcall, Ret, Args...>
+	struct make_function_type<option::fastcall, Ret, Args...>
 	{
 	public:
 		/*/
@@ -167,7 +170,7 @@ namespace dyn
 		using type = Ret __fastcall(Args...);
 	};
 	template <typename Ret, typename Ths, typename... Args>
-	struct make_function_type<call_opt_thiscall, Ret, Ths*, Args...>
+	struct make_function_type<option::thiscall, Ret, Ths*, Args...>
 	{
 	public:
 #ifndef _WIN64
@@ -193,7 +196,7 @@ namespace dyn
 #endif
 	};
 	template <typename Ret, typename... Args>
-	struct make_function_type<call_opt_vectorcall, Ret, Args...>
+	struct make_function_type<option::vectorcall, Ret, Args...>
 	{
 	public:
 		using type = Ret __vectorcall(Args...);
@@ -216,9 +219,9 @@ namespace dyn
 		return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 	};
 	template <
-		typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args,
+		typename Ret = int, option Opt = option::c_decl, typename... Args,
 		typename Fn = typename make_function_type<Opt, Ret, Args...>::type,
-		typename = typename std::enable_if<Opt != call_opt_thiscall>::type
+		typename = typename std::enable_if<Opt != option::thiscall>::type
 		/*/
 		 *   This function prototype only specializes with global function pointer at which
 		 *   the 'Opt' non-type template argument controls.
@@ -595,9 +598,9 @@ namespace dyn
 			return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
 		};
 		template <
-			typename Ret = int, std::size_t Opt = call_opt_cdecl, typename... Args,
+			typename Ret = int, option Opt = option::c_decl, typename... Args,
 			typename Fn = typename make_function_type<Opt, Ret, Args...>::type,
-			typename = typename std::enable_if<Opt != call_opt_thiscall>::type
+			typename = typename std::enable_if<Opt != option::thiscall>::type
 			/*/
 			 *   This function prototype only specializes with global function pointer at which
 			 *   the 'Opt' non-type template argument controls.
@@ -608,9 +611,9 @@ namespace dyn
 			return this->operator ()<Fn>(std::forward<Args>(args)...);
 		};
 		template <
-			typename Ret = int, std::size_t Opt = call_opt_thiscall, typename Ths = void*, typename... Args,
+			typename Ret = int, option Opt = option::thiscall, typename Ths = void*, typename... Args,
 			typename Fn = typename make_function_type<Opt, Ret, Ths, Args...>::type,
-			typename = typename std::enable_if<Opt == call_opt_thiscall>::type
+			typename = typename std::enable_if<Opt == option::thiscall>::type
 			/*/
 			 *   This function prototype only specializes with member function pointer at which
 			 *   the 'Opt' non-type template argument controls.
