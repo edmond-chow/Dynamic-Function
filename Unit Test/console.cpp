@@ -139,7 +139,7 @@ void __cdecl testor(bool(__fastcall* process)(int), int result, const wchar_t* s
 bool __fastcall test1(int result)
 {
 	dyn::function fn_reference{ add };
-	int ret_fn_reference = fn_reference.operator ()<int, dyn::call_opt_stdcall>(3, 4);
+	int ret_fn_reference = fn_reference.operator ()<int, dyn::option::stdcall>(3, 4);
 	return ret_fn_reference == result;
 };
 static bool glo_fn_callee_fine{ false };
@@ -147,7 +147,7 @@ static dyn::function glo_fn_callee{};
 bool __fastcall test2(int result)
 {
 	dyn::function fn_callee{ callee };
-	int ret_fn_callee = fn_callee.operator ()<int, dyn::call_opt_stdcall>(3, 4);
+	int ret_fn_callee = fn_callee.operator ()<int, dyn::option::stdcall>(3, 4);
 	glo_fn_callee = std::move(fn_callee);
 	return glo_fn_callee_fine = ret_fn_callee == result;
 };
@@ -156,7 +156,7 @@ bool __fastcall test3(int result)
 	if (!glo_fn_callee_fine) { return false; }
 	dyn::function fn_caller{ caller };
 	fn_caller.operator []<intptr_t>(caller_offset) = reinterpret_cast<intptr_t>(glo_fn_callee.raw());
-	int ret_fn_caller = fn_caller.operator ()<int, dyn::call_opt_stdcall>();
+	int ret_fn_caller = fn_caller.operator ()<int, dyn::option::stdcall>();
 	return ret_fn_caller == result;
 };
 bool __fastcall test4(int result)
@@ -167,7 +167,7 @@ bool __fastcall test4(int result)
 	} casing_ptr_reference{};
 	casing_ptr_reference.invoke = &add;
 	void* ptr_reference = casing_ptr_reference.pointer;
-	int ptr_result = dyn::fn_call<int, dyn::call_opt_stdcall>(ptr_reference, 3, 4);
+	int ptr_result = dyn::fn_call<int, dyn::option::stdcall>(ptr_reference, 3, 4);
 	return ptr_result == result;
 };
 static bool glo_ptr_callee_fine{ false };
@@ -176,7 +176,7 @@ bool __fastcall test5(int result)
 {
 	void* ptr_callee = dyn::fn_malloc(callee_sz);
 	memcpy(ptr_callee, callee, callee_sz);
-	int ret_ptr_callee = dyn::fn_call<int, dyn::call_opt_stdcall>(ptr_callee, 3, 4);
+	int ret_ptr_callee = dyn::fn_call<int, dyn::option::stdcall>(ptr_callee, 3, 4);
 	glo_ptr_callee = ptr_callee;
 	return glo_ptr_callee_fine = ret_ptr_callee == result;
 };
@@ -187,7 +187,7 @@ bool __fastcall test6(int result)
 	void* ptr_caller = dyn::fn_malloc(caller_sz);
 	memcpy(ptr_caller, caller, caller_sz);
 	reinterpret_cast<intptr_t&>(reinterpret_cast<std::uint8_t*>(ptr_caller)[caller_offset]) = reinterpret_cast<intptr_t>(glo_ptr_callee);
-	int ret_ptr_caller = dyn::fn_call<int, dyn::call_opt_stdcall>(ptr_caller);
+	int ret_ptr_caller = dyn::fn_call<int, dyn::option::stdcall>(ptr_caller);
 	glo_ptr_caller = ptr_caller;
 	return ret_ptr_caller == result;
 };
@@ -200,7 +200,7 @@ bool __fastcall test7(int result)
 	 *   points to which the program transfer controls without that offset portion for
 	 *   which the caller adjust the this pointer.
 	/*/
-	int ret_mem_reference = mem_reference.operator ()<int, dyn::call_opt_thiscall, base*>(&ret_membx_reference, 5);
+	int ret_mem_reference = mem_reference.operator ()<int, dyn::option::thiscall, base*>(&ret_membx_reference, 5);
 	/*/
 	 *   In the circumstances, the 3rd template argument of 'operator ()' significantly
 	 *   aids for adjusting the pointer as if the program cases it dynamically within the
@@ -212,13 +212,13 @@ bool __fastcall test8(int result)
 {
 	box ret_membx_callee{ 8 };
 	dyn::function mem_callee{ ths_callee };
-	int ret_mem_callee = mem_callee.operator ()<int, dyn::call_opt_thiscall, base*>(&ret_membx_callee, 5);
+	int ret_mem_callee = mem_callee.operator ()<int, dyn::option::thiscall, base*>(&ret_membx_callee, 5);
 	return ret_mem_callee == ret_membx_callee.x && ret_mem_callee == result;
 };
 bool __fastcall test9(int result)
 {
 	dyn::function fn_vararg_reference{ sum };
-	int ret_fn_vararg_reference = fn_vararg_reference.operator ()<int, dyn::call_opt_cdecl>(4, 37, 63, 87, 91);
+	int ret_fn_vararg_reference = fn_vararg_reference.operator ()<int, dyn::option::c_decl>(4, 37, 63, 87, 91);
 	return ret_fn_vararg_reference = result;
 };
 bool __fastcall test10(int result)
@@ -229,7 +229,7 @@ bool __fastcall test10(int result)
 	} casing_ptr_vararg_reference{};
 	casing_ptr_vararg_reference.invoke = &sum;
 	void* ptr_vararg_reference = casing_ptr_vararg_reference.pointer;
-	int ret_ptr_vararg_reference = dyn::fn_call<int, dyn::call_opt_cdecl>(ptr_vararg_reference, 4, 37, 63, 87, 91);
+	int ret_ptr_vararg_reference = dyn::fn_call<int, dyn::option::c_decl>(ptr_vararg_reference, 4, 37, 63, 87, 91);
 	return ret_ptr_vararg_reference == result;
 };
 int __cdecl main()
