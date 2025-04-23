@@ -50,100 +50,100 @@ namespace dyn
 		vectorcall = 4,
 	};
 	template <std::size_t Ix, typename... Args>
-	struct argument_traits
+	struct arg_traits
 		: std::bool_constant<false>
 	{};
-	template <std::size_t Ix, typename Arg, typename... Others>
-	struct argument_traits<Ix, Arg, Others...>
-		: public argument_traits<Ix - 1, Others...>
+	template <std::size_t Ix, typename Arg1, typename... Args>
+	struct arg_traits<Ix, Arg1, Args...>
+		: public arg_traits<Ix - 1, Args...>
 	{};
-	template <typename Arg, typename... Others>
-	struct argument_traits<0, Arg, Others...>
+	template <typename Arg, typename... Args>
+	struct arg_traits<0, Arg, Args...>
 		: public std::bool_constant<true>
 	{
 	public:
 		using result = Arg;
 	};
 	template <>
-	struct argument_traits<0>
+	struct arg_traits<0>
 		: public std::bool_constant<false>
 	{};
 	template <typename Ret, typename... Args>
-	struct function_proto
+	struct fn_proto
 	{
 	public:
 		static constexpr std::size_t size = sizeof...(Args) + 1;
 		using ret = Ret;
 		template <std::size_t Ix>
-		using args = typename argument_traits<Ix, Args...>::result;
+		using args = typename arg_traits<Ix, Args...>::result;
 	};
 	template <typename Fn>
-	struct function_traits
+	struct fn_traits
 		: public std::bool_constant<false>
 	{};
 	template <typename Ret, typename... Args>
-	struct function_traits<Ret __cdecl(Args......)>
+	struct fn_traits<Ret __cdecl(Args......)>
 	/*/
-	 *   We just provide a specialises of 'function_traits<Fn>' for vararg.
+	 *   We just provide a specialises of 'fn_traits<Fn>' for vararg.
 	 *   'Ret __cdecl(Args......)' and 'Ret(Args......)' are always the same.
 	/*/
-		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+		: public fn_proto<Ret, Args...>, public std::bool_constant<true>
 	{
 	public:
-		using proto = function_proto<Ret, Args...>;
+		using proto = fn_proto<Ret, Args...>;
 		static constexpr option opt = option::c_decl;
 	};
 	template <typename Ret, typename... Args>
-	struct function_traits<Ret __cdecl(Args...)>
+	struct fn_traits<Ret __cdecl(Args...)>
 	/*/
 	 *   'Ret __cdecl(Args...)' and 'Ret(Args...)' are always the same.
 	/*/
-		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+		: public fn_proto<Ret, Args...>, public std::bool_constant<true>
 	{
 	public:
-		using proto = function_proto<Ret, Args...>;
+		using proto = fn_proto<Ret, Args...>;
 		static constexpr option opt = option::c_decl;
 	};
 #ifndef _WIN64
 	template <typename Ret, typename... Args>
-	struct function_traits<Ret __stdcall(Args...)>
+	struct fn_traits<Ret __stdcall(Args...)>
 	/*/
 	 *   'Ret __stdcall(Args...)' and 'Ret(Args...)' are the same in x64.
 	/*/
-		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+		: public fn_proto<Ret, Args...>, public std::bool_constant<true>
 	{
 	public:
-		using proto = function_proto<Ret, Args...>;
+		using proto = fn_proto<Ret, Args...>;
 		static constexpr option opt = option::stdcall;
 	};
 	template <typename Ret, typename... Args>
-	struct function_traits<Ret __fastcall(Args...)>
+	struct fn_traits<Ret __fastcall(Args...)>
 	/*/
 	 *   'Ret __fastcall(Args...)' and 'Ret(Args...)' are the same in x64.
 	/*/
-		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+		: public fn_proto<Ret, Args...>, public std::bool_constant<true>
 	{
 	public:
-		using proto = function_proto<Ret, Args...>;
+		using proto = fn_proto<Ret, Args...>;
 		static constexpr option opt = option::fastcall;
 	};
 #endif
 	template <typename Ret, typename... Args>
-	struct function_traits<Ret __vectorcall(Args...)>
-		: public function_proto<Ret, Args...>, public std::bool_constant<true>
+	struct fn_traits<Ret __vectorcall(Args...)>
+		: public fn_proto<Ret, Args...>, public std::bool_constant<true>
 	{
 	public:
-		using proto = function_proto<Ret, Args...>;
+		using proto = fn_proto<Ret, Args...>;
 		static constexpr option opt = option::vectorcall;
 	};
 #if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201402L) && (_MSC_VER >= 1800))
 	template <typename Fn>
-	INLINE_VAR constexpr bool function_traits_v = function_traits<Fn>::value;
+	INLINE_VAR constexpr bool fn_traits_v = fn_traits<Fn>::value;
 #endif
 	template <option Opt = option::c_decl, typename Ret = void, typename... Args>
-	struct make_function_type;
+	struct make_fn;
 	template <typename Ret, typename... Args>
-	struct make_function_type<option::c_decl, Ret, Args...>
+	struct make_fn<option::c_decl, Ret, Args...>
 	{
 	public:
 		/*/
@@ -152,7 +152,7 @@ namespace dyn
 		using type = Ret __cdecl(Args...);
 	};
 	template <typename Ret, typename... Args>
-	struct make_function_type<option::stdcall, Ret, Args...>
+	struct make_fn<option::stdcall, Ret, Args...>
 	{
 	public:
 		/*/
@@ -161,7 +161,7 @@ namespace dyn
 		using type = Ret __stdcall(Args...);
 	};
 	template <typename Ret, typename... Args>
-	struct make_function_type<option::fastcall, Ret, Args...>
+	struct make_fn<option::fastcall, Ret, Args...>
 	{
 	public:
 		/*/
@@ -170,7 +170,7 @@ namespace dyn
 		using type = Ret __fastcall(Args...);
 	};
 	template <typename Ret, typename Ths, typename... Args>
-	struct make_function_type<option::thiscall, Ret, Ths*, Args...>
+	struct make_fn<option::thiscall, Ret, Ths*, Args...>
 	{
 	public:
 #ifndef _WIN64
@@ -196,31 +196,40 @@ namespace dyn
 #endif
 	};
 	template <typename Ret, typename... Args>
-	struct make_function_type<option::vectorcall, Ret, Args...>
+	struct make_fn<option::vectorcall, Ret, Args...>
 	{
 	public:
 		using type = Ret __vectorcall(Args...);
 	};
+#if (__cplusplus >= 201402L) || (defined(_MSVC_LANG) && (_MSVC_LANG >= 201402L) && (_MSC_VER >= 1800))
+	template <dyn::option Opt, typename Ret, typename... Args>
+	using make_fn_t = typename make_fn<Opt, Ret, Args...>::type;
+#endif
+	template <typename Rst, typename Dat>
+	constexpr Rst* fn(Dat dat)
+	{
+		union casing {
+			Dat data;
+			Rst* result;
+		} rst{ dat };
+		return rst.result;
+	};
 	template <
 		typename Fn, typename... Args,
-		typename = typename std::enable_if<function_traits<Fn>::value>::type
+		typename = typename std::enable_if<fn_traits<Fn>::value>::type
 		/*/
 		 *   This function prototype only specializes with global function pointer in which
-		 *   'function_traits<Fn>' is constrained by type.
+		 *   'fn_traits<Fn>' is constrained by type.
 		/*/
 	>
-	typename function_traits<Fn>::ret fn_call(void* ptr, Args... args)
+	typename fn_traits<Fn>::ret fn_call(void* ptr, Args... args)
 	{
-		union {
-			void* pointer;
-			Fn* invoke;
-		} caller{};
-		caller.pointer = ptr;
-		return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
+		Fn* invoker{ fn<Fn>(ptr) };
+		return invoker == nullptr ? typename fn_traits<Fn>::ret{} : invoker(std::forward<Args>(args)...);
 	};
 	template <
 		typename Ret = int, option Opt = option::c_decl, typename... Args,
-		typename Fn = typename make_function_type<Opt, Ret, Args...>::type,
+		typename Fn = typename make_fn<Opt, Ret, Args...>::type,
 		typename = typename std::enable_if<Opt != option::thiscall>::type
 		/*/
 		 *   This function prototype only specializes with global function pointer at which
@@ -370,16 +379,11 @@ namespace dyn
 		/*/
 		 *   Constructions with a function pointer treat as 'this->ref' in 'true' case.
 		/*/
-		template <typename Fn, typename = typename std::enable_if<function_traits<Fn>::value>::type>
+		template <typename Fn, typename = typename std::enable_if<fn_traits<Fn>::value>::type>
 		constexpr function(Fn* invoker) noexcept
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
-			union {
-				byte* object;
-				Fn* invoke;
-			} caller{};
-			caller.invoke = invoker;
-			this->obj = caller.object;
+			this->obj = fn<byte>(invoker);
 		};
 #ifndef _WIN64
 		/*/
@@ -390,12 +394,7 @@ namespace dyn
 		constexpr function(Ret(__cdecl Ty::* invoker)(Args...)) noexcept
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
-			union {
-				byte* object;
-				Ret(Ty::* invoke)(Args...);
-			} caller{};
-			caller.invoke = invoker;
-			this->obj = caller.object;
+			this->obj = fn<byte>(invoker);
 		};
 		/*/
 		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
@@ -405,12 +404,7 @@ namespace dyn
 		constexpr function(Ret(__stdcall Ty::* invoker)(Args...)) noexcept
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
-			union {
-				byte* object;
-				Ret(Ty::* invoke)(Args...);
-			} caller{};
-			caller.invoke = invoker;
-			this->obj = caller.object;
+			this->obj = fn<byte>(invoker);
 		};
 		/*/
 		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
@@ -420,12 +414,7 @@ namespace dyn
 		constexpr function(Ret(__fastcall Ty::* invoker)(Args...)) noexcept
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
-			union {
-				byte* object;
-				Ret(Ty::* invoke)(Args...);
-			} caller{};
-			caller.invoke = invoker;
-			this->obj = caller.object;
+			this->obj = fn<byte>(invoker);
 		};
 #endif
 		/*/
@@ -436,12 +425,7 @@ namespace dyn
 		constexpr function(Ret(__vectorcall Ty::* invoker)(Args...)) noexcept
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
-			union {
-				byte* object;
-				Ret(Ty::* invoke)(Args...);
-			} caller{};
-			caller.invoke = invoker;
-			this->obj = caller.object;
+			this->obj = fn<byte>(invoker);
 		};
 		/*/
 		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
@@ -454,12 +438,7 @@ namespace dyn
 		constexpr function(Ret(__thiscall Ty::* invoker)(Args...)) noexcept
 			: ref{ true }, obj{ nullptr }, sz{ 0 }, cap{ 0 }
 		{
-			union {
-				byte* object;
-				Ret(Ty::* invoke)(Args...);
-			} caller{};
-			caller.invoke = invoker;
-			this->obj = caller.object;
+			this->obj = fn<byte>(invoker);
 		};
 		/*/
 		 *   Constructions with a storage duration to a given size treat as 'this->ref' in
@@ -586,20 +565,16 @@ namespace dyn
 		};
 		template <
 			typename Fn, typename... Args,
-			typename = typename std::enable_if<function_traits<Fn>::value>::type
+			typename = typename std::enable_if<fn_traits<Fn>::value>::type
 		>
-		typename function_traits<Fn>::ret operator ()(Args... args) const &
+		typename fn_traits<Fn>::ret operator ()(Args... args) const &
 		{
-			union {
-				byte* object;
-				Fn* invoke;
-			} caller{};
-			caller.object = this->obj;
-			return caller.invoke == nullptr ? typename function_traits<Fn>::ret{} : caller.invoke(std::forward<Args>(args)...);
+			Fn* invoker{ fn<Fn>(this->obj) };
+			return invoker == nullptr ? typename fn_traits<Fn>::ret{} : invoker(std::forward<Args>(args)...);
 		};
 		template <
 			typename Ret = int, option Opt = option::c_decl, typename... Args,
-			typename Fn = typename make_function_type<Opt, Ret, Args...>::type,
+			typename Fn = typename make_fn<Opt, Ret, Args...>::type,
 			typename = typename std::enable_if<Opt != option::thiscall>::type
 			/*/
 			 *   This function prototype only specializes with global function pointer at which
@@ -612,7 +587,7 @@ namespace dyn
 		};
 		template <
 			typename Ret = int, option Opt = option::thiscall, typename Ths = void*, typename... Args,
-			typename Fn = typename make_function_type<Opt, Ret, Ths, Args...>::type,
+			typename Fn = typename make_fn<Opt, Ret, Ths, Args...>::type,
 			typename = typename std::enable_if<Opt == option::thiscall>::type
 			/*/
 			 *   This function prototype only specializes with member function pointer at which
