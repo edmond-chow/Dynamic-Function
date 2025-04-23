@@ -23,7 +23,7 @@
 #else
 #define INLINE_VAR
 #endif
- /* Compiler optimizing the assembly, the generated object code goes a bit difference. */
+/* Compiler optimizing the assembly, the generated object code goes a bit difference. */
 static constexpr int __stdcall add(int x, int y)
 {
 	return x + y;
@@ -188,27 +188,27 @@ static bool __fastcall test_ptr_caller(int result)
 };
 static bool __fastcall test_mem_ref(int result)
 {
-	box ret_membx_ref{ 8 };
+	box bx{ 8 };
 	dyn::function fn{ &base::sub };
 	/*/
 	 *   In this version of msvc, &box::sub and &base::sub both are just an address
 	 *   points to which the program transfer controls without that offset portion for
 	 *   which the caller adjust the this pointer.
 	/*/
-	int rst = fn.operator ()<int, dyn::option::thiscall, base*>(&ret_membx_ref, 5);
+	int rst = fn.operator ()<int, dyn::option::thiscall, base*>(&bx, 5);
 	/*/
 	 *   In the circumstances, the 3rd template argument of 'operator ()' significantly
 	 *   aids for adjusting the pointer as if the program cases it dynamically within the
 	 *   chain of inheritance.
 	/*/
-	return rst == ret_membx_ref.x && rst == result;
+	return rst == bx.x && rst == result;
 };
 static bool __fastcall test_mem_callee(int result)
 {
-	box ret_membx_callee{ 8 };
+	box bx{ 8 };
 	dyn::function fn{ ths_callee };
-	int rst = fn.operator ()<int, dyn::option::thiscall, base*>(&ret_membx_callee, 5);
-	return rst == ret_membx_callee.x && rst == result;
+	int rst = fn.operator ()<int, dyn::option::thiscall, base*>(&bx, 5);
+	return rst == bx.x && rst == result;
 };
 static bool __fastcall test_varargs_ref(int result)
 {
