@@ -9,12 +9,11 @@ fn_proto and fn_traits deduce from a concrete function type with a calling
 convention involved all the argument types in parameter list and its return
 type. The struct make_fn backs to the its concrete function type from its
 template arguments whenever you have a member function just pass that pointer
-type to first argument of the parameter pack. The fn_call transfers control from
-an arbitrary type pointer. The functionalities consist of struct byte and
-function. The struct byte overrides operator new and delete through the
+type to first argument of the parameter pack. The fn_call transfers controls to
+an arbitrary global function pointer. The functionalities consist of struct byte
+and function. The struct byte overrides operator new and delete through the
 allocations to wrap the executable heap. The function::operator() transfers
-control from an arbitrary type pointer while the member function pointer type
-treated as a global function pointer type to invoke.
+controls from an arbitrary a global or member function pointer.
 
 # Implementations
 In x86 mode, functions as such with thiscall likewise what we have in fastcall,
