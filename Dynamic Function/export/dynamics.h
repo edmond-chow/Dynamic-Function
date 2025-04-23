@@ -84,7 +84,7 @@ namespace dyn
 	template <typename Ret, typename... Args>
 	struct fn_traits<Ret __cdecl(Args......)>
 	/*/
-	 *   We just provide a specialises of 'fn_traits<Fn>' for vararg.
+	 *   We just provide a specialises of 'fn_traits<Fn>' for varargs.
 	 *   'Ret __cdecl(Args......)' and 'Ret(Args......)' are always the same.
 	/*/
 		: public fn_proto<Ret, Args...>, public std::bool_constant<true>
@@ -218,7 +218,7 @@ namespace dyn
 		typename Fn, typename... Args,
 		typename = typename std::enable_if<fn_traits<Fn>::value>::type
 		/*/
-		 *   This function prototype only specializes with global function pointer in which
+		 *   This function prototype only specializes with a global function pointer in which
 		 *   'fn_traits<Fn>' is constrained by type.
 		/*/
 	>
@@ -232,7 +232,7 @@ namespace dyn
 		typename Fn = typename make_fn<Opt, Ret, Args...>::type,
 		typename = typename std::enable_if<Opt != option::thiscall>::type
 		/*/
-		 *   This function prototype only specializes with global function pointer at which
+		 *   This function prototype only specializes with a global function pointer at which
 		 *   the 'Opt' non-type template argument controls.
 		/*/
 	>
@@ -377,7 +377,8 @@ namespace dyn
 			other.cap = 0;
 		};
 		/*/
-		 *   Constructions with a function pointer treat as 'this->ref' in 'true' case.
+		 *   Constructions with a global function pointer treat as 'this->ref' in 'true' case
+		 *   in which type of that pointer is erased.
 		/*/
 		template <typename Fn, typename = typename std::enable_if<fn_traits<Fn>::value>::type>
 		constexpr function(Fn* invoker) noexcept
@@ -387,8 +388,8 @@ namespace dyn
 		};
 #ifndef _WIN64
 		/*/
-		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
-		 *   case in which type of that pointer is erased for cdecl.
+		 *   Constructions with a member function pointer treat as 'this->ref' in 'true' case
+		 *   in which type of that pointer is erased for cdecl.
 		/*/
 		template <typename Ty, typename Ret, typename... Args>
 		constexpr function(Ret(__cdecl Ty::* invoker)(Args...)) noexcept
@@ -397,8 +398,8 @@ namespace dyn
 			this->obj = fn<byte>(invoker);
 		};
 		/*/
-		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
-		 *   case in which type of that pointer is erased for stdcall.
+		 *   Constructions with a member function pointer treat as 'this->ref' in 'true' case
+		 *   in which type of that pointer is erased for stdcall.
 		/*/
 		template <typename Ty, typename Ret, typename... Args>
 		constexpr function(Ret(__stdcall Ty::* invoker)(Args...)) noexcept
@@ -407,8 +408,8 @@ namespace dyn
 			this->obj = fn<byte>(invoker);
 		};
 		/*/
-		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
-		 *   case in which type of that pointer is erased for fastcall.
+		 *   Constructions with a member function pointer treat as 'this->ref' in 'true' case
+		 *   in which type of that pointer is erased for fastcall.
 		/*/
 		template <typename Ty, typename Ret, typename... Args>
 		constexpr function(Ret(__fastcall Ty::* invoker)(Args...)) noexcept
@@ -418,8 +419,8 @@ namespace dyn
 		};
 #endif
 		/*/
-		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
-		 *   case in which type of that pointer is erased for vectorcall.
+		 *   Constructions with a member function pointer treat as 'this->ref' in 'true' case
+		 *   in which type of that pointer is erased for vectorcall.
 		/*/
 		template <typename Ty, typename Ret, typename... Args>
 		constexpr function(Ret(__vectorcall Ty::* invoker)(Args...)) noexcept
@@ -428,8 +429,8 @@ namespace dyn
 			this->obj = fn<byte>(invoker);
 		};
 		/*/
-		 *   Constructions with a member function pointer treat as 'this->ref' in 'true'
-		 *   case in which type of that pointer is erased for thiscall.
+		 *   Constructions with a member function pointer treat as 'this->ref' in 'true' case
+		 *   in which type of that pointer is erased for thiscall.
 		/*/
 		template <typename Ty, typename Ret, typename... Args>
 		/*/
@@ -577,7 +578,7 @@ namespace dyn
 			typename Fn = typename make_fn<Opt, Ret, Args...>::type,
 			typename = typename std::enable_if<Opt != option::thiscall>::type
 			/*/
-			 *   This function prototype only specializes with global function pointer at which
+			 *   This function prototype only specializes with a global function pointer at which
 			 *   the 'Opt' non-type template argument controls.
 			/*/
 		>
@@ -590,7 +591,7 @@ namespace dyn
 			typename Fn = typename make_fn<Opt, Ret, Ths, Args...>::type,
 			typename = typename std::enable_if<Opt == option::thiscall>::type
 			/*/
-			 *   This function prototype only specializes with member function pointer at which
+			 *   This function prototype only specializes with a member function pointer at which
 			 *   the 'Opt' non-type template argument controls.
 			/*/
 		>
